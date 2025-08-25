@@ -8,13 +8,15 @@ from core.transcription import SUPPORTED_LANGUAGES
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
-from langchain_groq import ChatGroq
+from langchain_community.llms import Ollama
 from langchain_community.retrievers import TFIDFRetriever
 from langchain.prompts import PromptTemplate
 from langchain.globals import set_verbose
 from langchain.callbacks.base import BaseCallbackHandler
 
-TTS_AVAILABLE = True # added this to use older query processing function pre-break up
+# Removed TTS dependency - now hardcoded to False for text-only mode
+TTS_AVAILABLE = False
+
 # For language detection of the query
 try:
     from langdetect import detect, DetectorFactory
@@ -59,11 +61,9 @@ def detect_language_langid(text):
     return lang, SUPPORTED_LANGUAGES.get(lang, "Unsupported")
 
 # --- RAG Chain Building ---
-def build_rag_chain_from_files(pdf_file, txt_file, groq_api_key, enhanced_mode=True, model_choice="llama-3.3-70b-versatile"):
+def build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url="http://localhost:11434", enhanced_mode=True, model_choice="hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0"):
     """
-    Build a RAG chain from PDF and/or TXT files.
-    This function is kept for potential direct use or as a base.
-    `build_rag_chain_with_model_choice` is generally preferred.
+    Build a RAG chain from PDF and/or TXT files using Ollama.
     """
     pdf_path = txt_path = None
     if not (pdf_file or txt_file):
@@ -91,19 +91,14 @@ def build_rag_chain_from_files(pdf_file, txt_file, groq_api_key, enhanced_mode=T
         if not all_docs:
             raise ValueError("No valid documents loaded or documents are empty.")
 
-        # Adjust parameters based on model and mode
-        if model_choice == "llama-3.1-8b-instant":
-            chunk_size = 700 if enhanced_mode else 800
-            max_chunks = 10 if enhanced_mode else 12
-            max_tokens = 1500
-        else: # "llama-3.3-70b-versatile"
-            chunk_size = 600 if enhanced_mode else 700
-            max_chunks = 15 if enhanced_mode else 18
-            max_tokens = 2500
+        # Adjust parameters for local model - smaller chunks for better performance
+        chunk_size = 400 if enhanced_mode else 500
+        max_chunks = 8 if enhanced_mode else 10
+        max_tokens = 1000  # Conservative for local model
 
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
-            chunk_overlap=max(100, int(chunk_size * 0.2)), # Overlap as a percentage of chunk_size
+            chunk_overlap=max(80, int(chunk_size * 0.2)), # Overlap as a percentage of chunk_size
             separators=["\n\n", "\n", ". ", "! ", "? ", ", ", " ", ""],
             length_function=len
         )
@@ -114,36 +109,30 @@ def build_rag_chain_from_files(pdf_file, txt_file, groq_api_key, enhanced_mode=T
             
         retriever = TFIDFRetriever.from_documents(splits, k=min(max_chunks, len(splits)))
 
-        template = """ You are an female efficient Knowledge Assistant, designed for answering questions specifically from the knowledge base provided to you.
+        template = """You are an efficient Knowledge Assistant, designed for answering questions specifically from the knowledge base provided to you.
 
-Your task is as follows: give a detailed response for the user query in the user language (e.g., "what are some schemes?" --> "Here is a list of some schemes").
+Your task is to give a detailed response for the user query in the user language.
 
-Ensure your response follows these styles and tone:
-* read number as digits, e.g., "1,0,2" instead of "one hundered two"
+Ensure your response follows these guidelines:
 * Always answer in the **same language as the Question**, regardless of the language of the source documents.
-* If the source documents are in Marathi and the question is in English, **translate and summarize the information into English**.
+* If the source documents are in Marathi and the question is in English, translate and summarize the information into English.
 * If the question is in Marathi, answer in Marathi. Do the same for English and Hindi.
 * Use direct, everyday language.
-* Maintain a personal and friendly tone, aligned with the user's language.
-* Provide detailed responses, with **toll-free numbers** and **visible (non-hyperlinked) website URLs** *only if those URLs are present in the knowledge base*.
+* Maintain a personal and friendly tone.
+* Provide detailed responses with toll-free numbers and website URLs *only if present in the knowledge base*.
 * Use section headers like "Description", "Eligibility", or for Marathi: "उद्देशः", "अंतर्भूत घटकः".
-* **Always format your answer using markdown. Use markdown headings (##), bold, bullet lists, and other markdown features where appropriate. This applies to English, Hindi, and Marathi answers.**
+* Format your answer using markdown with headings (##), bold, bullet lists where appropriate.
 * If there is no relevant context for the question, simply say:  
   - **In Marathi**: "क्षमस्व, मी या विषयावर तुमची मदत करू शकत नाही. अधिक माहितीसाठी, कृपया १०४/१०२ हेल्पलाइन क्रमांकावर संपर्क साधा."  
   - **In Hindi**: "माफ़ कीजिए, मैं इस विषय पर आपकी मदद नहीं कर सकती। अधिक जानकारी के लिए कृपया 104/102 हेल्पलाइन नंबर पर संपर्क करें।"  
   - **In English**: "I'm sorry, I cannot assist with that topic. For more details, please contact the 104/102 helpline numbers."
-* **Remove duplicate information and provide only one consolidated answer.**
+* Remove duplicate information and provide only one consolidated answer.
 * Do not provide answers based on assumptions or general knowledge. Use only the information provided in the knowledge base.
-* If there is no relevant context for the question, simply direct the user to contact 104/102 helpline numbers. DO NOT ANSWER IRRELEVANT QUESTIONS, ONLY APOLOGIZE THAT YOU CAN'T ANSWER THIS QUESTION AND DIRECT TOWARD 104/102 HELPLINE.
-* **If the user asks for jokes, casual conversation, to 'talk like' someone, or anything not related to government schemes or the knowledge base, do not answer. Instead, respond with the same helpline apology message as above.**
+* If the user asks for jokes, casual conversation, or anything not related to the knowledge base, respond with the helpline apology message.
 
-Your goal is to help a citizen understand schemes and their eligibility criteria clearly, using only the verified data provided in the documents. 
-
-Here is the content you will work with: {context}
+Context from knowledge base: {context}
 
 Question: {question}
-
-Now perform the task as instructed above.
 
 Answer:"""
 
@@ -151,25 +140,22 @@ Answer:"""
             template=template,
             input_variables=["context", "question"]
         )
-        chain_kwargs = {
-            "prompt": custom_prompt,
-            "verbose": False,  # For debugging
-        }
         
-        llm = ChatGroq(
-            api_key=groq_api_key, 
+        # Initialize Ollama LLM
+        llm = Ollama(
+            base_url=ollama_base_url,
             model=model_choice,
-            temperature=0.05,  # Keep it deterministic
-            max_tokens=max_tokens,
-            callbacks=[StrictContextCallback()]  # Add a custom callback to monitor responses
+            temperature=0.1,  # Keep it deterministic
+            num_predict=max_tokens,
+            callbacks=[StrictContextCallback()]
         )
         
         return RetrievalQA.from_chain_type(
             llm=llm,
             chain_type="stuff",
             retriever=retriever,
-            return_source_documents=False, # Set to True if you need to inspect sources
-            chain_type_kwargs=chain_kwargs
+            return_source_documents=False,
+            chain_type_kwargs={"prompt": custom_prompt, "verbose": False}
         )
             
     finally:
@@ -177,20 +163,17 @@ Answer:"""
             if os.path.exists(f_path):
                 os.unlink(f_path)
 
-def build_rag_chain_with_model_choice(pdf_file, txt_file, groq_api_key, model_choice="llama-3.1-8b-instant", enhanced_mode=True):
+def build_rag_chain_with_model_choice(pdf_file, txt_file, ollama_base_url="http://localhost:11434", model_choice="hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0", enhanced_mode=True):
     """
-    Build RAG chain with selectable model. This is the primary RAG chain builder.
+    Build RAG chain with Ollama model. This is the primary RAG chain builder.
     """
-    return build_rag_chain_from_files(pdf_file, txt_file, groq_api_key, enhanced_mode, model_choice)
+    return build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url, enhanced_mode, model_choice)
 
 def detect_language(text):
     """
     Auto-detect language from text
     Returns language code (e.g., 'en', 'hi', 'mr')
     """
-    if not TTS_AVAILABLE:
-        return 'en'
-    
     try:
         clean_text = re.sub(r'[^\w\s]', '', text)
         if len(clean_text.strip()) < 10:
@@ -211,10 +194,11 @@ def detect_language(text):
         return 'en'
 
 # --- Query Processing ---
-def process_scheme_query_with_retry(rag_chain, user_query, max_retries=3, enable_tts=False, autoplay=False):
+def process_scheme_query_with_retry(rag_chain, user_query, max_retries=3):
     """
-    Process query with rate limit handling, caching, and optional TTS.
-    Returns: (text_result, audio_html, language_detected, cache_info)
+    Process query with rate limit handling and caching.
+    Returns: (text_result, empty_string, language_detected, cache_info)
+    Modified for text-only mode with local Ollama
     """
     # Detect language and enforce allowed languages for text processing
     supported_languages = {"en", "hi", "mr"}
@@ -231,7 +215,7 @@ def process_scheme_query_with_retry(rag_chain, user_query, max_retries=3, enable
     query_hash = get_query_hash(user_query.lower().strip())
     cached_result = get_cached_result(query_hash)
     if cached_result:
-        result_text = cached_result  # Do NOT prepend [Cached]
+        result_text = cached_result
         cache_status = "cached"
     else:
         cache_status = "not_cached"
@@ -263,16 +247,16 @@ def process_scheme_query_with_retry(rag_chain, user_query, max_retries=3, enable
             except Exception as e:
                 error_str = str(e)
                 
-                if "rate_limit_exceeded" in error_str or "413" in error_str:
+                if "connection" in error_str.lower() or "timeout" in error_str.lower():
                     if attempt < max_retries - 1:
                         wait_time = (attempt + 1) * 2  # Progressive backoff
                         time.sleep(wait_time)
                         continue
                     else:
-                        result_text = "Unable to answer right now, please try again after sometime. For more details, please contact the 104/102 helpline numbers."
+                        result_text = "Unable to connect to local Ollama server. Please ensure Ollama is running with the BharatGPT model."
                         break
                 
-                elif "Request too large" in error_str:
+                elif "Request too large" in error_str or "context" in error_str.lower():
                     if is_comprehensive_query and attempt == 0:
                         simplified_query = "list main government schemes"
                         try:
@@ -292,6 +276,7 @@ def process_scheme_query_with_retry(rag_chain, user_query, max_retries=3, enable
         else:
             result_text = "Unable to process query after multiple attempts. Please try a simpler question."
     
+    # Return format: (text_result, empty_audio_string, language, cache_info)
     return (result_text, "", detected_lang, {"text_cache": cache_status, "audio_cache": "not_generated"})
 
 # --- Scheme Extraction & Specialized Queries ---
@@ -301,24 +286,21 @@ def extract_schemes_from_text(text_content):
     text = re.sub(r'\s+', ' ', str(text_content)).replace('\n', ' ')
 
     # More comprehensive patterns, including common Marathi and English scheme indicators
-    # Order matters: more specific patterns first
     patterns = [
         r'\b(?:[A-Z][\w\'-]+(?: [A-Z][\w\'-]+)* )?(?:योजना|कार्यक्रम|अभियान|मिशन|धोरण|निधी|कार्ड|Scheme|Yojana|Programme|Abhiyan|Mission|Initiative|Program|Policy|Fund|Card)\b',
-        r'\b(?:Pradhan Mantri|Mukhyamantri|CM|PM|National|Rashtriya|State|Rajya|प्रधानमंत्री|मुख्यमंत्री|राष्ट्रीय|राज्य) (?:[A-Z][\w\'-]+ ?)+', # Schemes starting with titles
-        r'\b[A-Z]{2,}(?:-[A-Z]{2,})? Scheme\b', # Acronym schemes like JSY Scheme
-        r'\b(?:[०-९]+|[0-9]+)\.\s+([A-Z][\w\s\'-]+(?:योजना|Scheme|कार्यक्रम|Karyakram|अभियान|Abhiyan))', # Numbered list items
-        r'•\s+([A-Z][\w\s\'-]+(?:योजना|Scheme|कार्यक्रम|Karyakram|अभियान|Abhiyan))' # Bulleted list items
+        r'\b(?:Pradhan Mantri|Mukhyamantri|CM|PM|National|Rashtriya|State|Rajya|प्रधानमंत्री|मुख्यमंत्री|राष्ट्रीय|राज्य) (?:[A-Z][\w\'-]+ ?)+',
+        r'\b[A-Z]{2,}(?:-[A-Z]{2,})? Scheme\b',
+        r'\b(?:[०-९]+|[0-9]+)\.\s+([A-Z][\w\s\'-]+(?:योजना|Scheme|कार्यक्रम|Karyakram|अभियान|Abhiyan))',
+        r'•\s+([A-Z][\w\s\'-]+(?:योजना|Scheme|कार्यक्रम|Karyakram|अभियान|Abhiyan))'
     ]
     
     extracted_schemes = set()
     for pattern in patterns:
-        matches = re.findall(pattern, text, re.IGNORECASE) # IGNORECASE can be useful
+        matches = re.findall(pattern, text, re.IGNORECASE)
         for match in matches:
-            # If pattern captures a group (like for numbered/bulleted lists), use the group
             scheme_name = match[1] if isinstance(match, tuple) else match
-            # Clean up: strip whitespace, remove trailing punctuation, title case
             cleaned_name = scheme_name.strip().rstrip('.,:;-').title()
-            if len(cleaned_name) > 4 and len(cleaned_name.split()) < 10: # Basic sanity checks
+            if len(cleaned_name) > 4 and len(cleaned_name.split()) < 10:
                 extracted_schemes.add(cleaned_name)
 
     return sorted(list(extracted_schemes))
@@ -326,7 +308,6 @@ def extract_schemes_from_text(text_content):
 def query_all_schemes_optimized(rag_chain):
     """Optimized scheme extractor using targeted queries and regex."""
     try:
-        # A broad query to fetch relevant context containing scheme lists
         context_query = "Provide a comprehensive list of all government schemes, programs, and yojana mentioned in the documents."
         response = rag_chain.invoke({"query": context_query})
         content_to_parse = response.get('result', '')
@@ -346,21 +327,41 @@ def query_all_schemes_optimized(rag_chain):
 
 # --- Configuration/Helpers ---
 def get_model_options():
-    """Return available models with their characteristics."""
+    """Return available Ollama models with their characteristics."""
     return {
-        "llama-3.1-8b-instant": {
-            "name": "Llama 3.1 8B (Fast & Efficient)", 
-            "description": "Best for quick queries, good for most tasks."
+        "hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0": {
+            "name": "BharatGPT 3B Indic (Recommended)", 
+            "description": "Best for Indian languages including Hindi, Marathi, and English."
         },
-        "llama-3.3-70b-versatile": {
-            "name": "Llama 3.3 70B (High Quality)", 
-            "description": "Better quality for complex queries, higher latency."
+        "llama3.2:3b": {
+            "name": "Llama 3.2 3B", 
+            "description": "General purpose model, good for English queries."
         },
-        "gemma2-9b-it": {
-            "name": "Gemma Model", 
-            "description": "If llama models are dysfunctional, this is a fallback option."
+        "gemma2:2b": {
+            "name": "Gemma 2 2B", 
+            "description": "Lightweight fallback option."
         }
     }
+
+def check_ollama_connection(base_url="http://localhost:11434", model="hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0"):
+    """Check if Ollama server is running and model is available"""
+    try:
+        import requests
+        # Check if Ollama is running
+        response = requests.get(f"{base_url}/api/tags", timeout=5)
+        if response.status_code == 200:
+            models = response.json().get('models', [])
+            model_names = [m['name'] for m in models]
+            if model in model_names:
+                return True, "Ollama server is running and model is available"
+            else:
+                return False, f"Model '{model}' not found. Available models: {model_names}"
+        else:
+            return False, f"Ollama server responded with status {response.status_code}"
+    except requests.exceptions.ConnectionError:
+        return False, "Cannot connect to Ollama server. Please ensure Ollama is running on http://localhost:11434"
+    except Exception as e:
+        return False, f"Error checking Ollama connection: {str(e)}"
 
 class StrictContextCallback(BaseCallbackHandler):
     """Callback to monitor and log RAG responses"""

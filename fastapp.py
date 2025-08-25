@@ -12,7 +12,6 @@ import redis
 import pickle
 from contextlib import asynccontextmanager
 import os
-from groq import Groq
 import random
 import logging
 import re
@@ -27,12 +26,14 @@ def translate_text(text: str, target_lang: str) -> str:
     # Integrate with Google Translate, Microsoft Translator, or similar for real use
     return text
 
-# Core services
-from core.rag_services import build_rag_chain_with_model_choice, process_scheme_query_with_retry
-from core.tts_services import generate_audio_response, TTS_AVAILABLE, detect_language
-from core.transcription import transcribe_audio
-from utils.config import load_env_vars, GROQ_API_KEY
-
+# Core services - Updated imports for Ollama local mode
+from core.rag_services import (
+    build_rag_chain_with_model_choice, 
+    process_scheme_query_with_retry, 
+    detect_language,
+    check_ollama_connection
+)
+from utils.config import load_env_vars, OLLAMA_BASE_URL, OLLAMA_MODEL
 
 load_env_vars()
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost") 
@@ -146,7 +147,7 @@ class LangChainStateManager:
     def store_rag_chain_config(self, model_key: str, 
                               pdf_bytes: Optional[bytes] = None,
                               txt_bytes: Optional[bytes] = None,
-                              model_choice: str = "llama-3.3-70b-versatile",
+                              model_choice: str = "hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0",
                               enhanced_mode: bool = True,
                               pdf_name: str = "None",
                               txt_name: str = "None",
@@ -186,7 +187,7 @@ class LangChainStateManager:
             logging.info(f"RAG chain cached in memory for key: {model_key}")
         return True
     
-    def get_rag_chain(self, model_key: str, groq_api_key: str):
+    def get_rag_chain(self, model_key: str, ollama_base_url: str):
         if model_key in self._rag_cache:
             cached = self._rag_cache[model_key]
             if time.time() - cached["created_at"] < 3600:
@@ -199,7 +200,7 @@ class LangChainStateManager:
         if not config:
             logging.warning(f"No config found for RAG key: {model_key}")
             return None
-        rag_chain = self._rebuild_rag_chain(config, groq_api_key)
+        rag_chain = self._rebuild_rag_chain(config, ollama_base_url)
         if rag_chain:
             self._rag_cache[model_key] = {
                 "chain": rag_chain,
@@ -218,7 +219,7 @@ class LangChainStateManager:
                 logging.error(f"Failed to get config from Redis: {e}")
         return self._memory_fallback.get(f"rag_config:{model_key}")
     
-    def _rebuild_rag_chain(self, config: Dict[str, Any], groq_api_key: str):
+    def _rebuild_rag_chain(self, config: Dict[str, Any], ollama_base_url: str):
         try:
             from core.rag_services import build_rag_chain_with_model_choice
             pdf_bytes = None
@@ -232,7 +233,7 @@ class LangChainStateManager:
             rag_chain = build_rag_chain_with_model_choice(
                 pdf_io,
                 txt_io,
-                groq_api_key,
+                ollama_base_url,
                 model_choice=config["model_choice"],
                 enhanced_mode=config["enhanced_mode"]
             )
@@ -282,11 +283,6 @@ class LangChainStateManager:
 
 state_manager = LangChainStateManager(redis_manager)
 
-def get_groq_client() -> Groq:
-    if not GROQ_API_KEY:
-        raise HTTPException(status_code=500, detail="Missing GROQ_API_KEY")
-    return Groq(api_key=GROQ_API_KEY)
-
 def get_session_id(session_id: Optional[str] = None) -> str:
     return session_id or "default"
 
@@ -309,15 +305,13 @@ def check_rate_limit_delay(session_id="default", min_delay=2):
 
 class QueryRequest(BaseModel):
     input_text: str
-    model: str = "llama-3.3-70b-versatile"
+    model: str = "hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0"
     enhanced_mode: bool = True
-    voice_lang_pref: str = "auto"
     session_id: Optional[str] = None
     model_key: Optional[str] = None
 
 UPLOAD_DIR = "uploaded_files"
 CURRENT_MODEL_KEY = None  # Global variable 
-
 
 def setup_upload_directory():
     """Create upload directory if it doesn't exist"""
@@ -340,6 +334,11 @@ def load_backend_files():
         return None, "No files found in backend"
         
     try:
+        # Check Ollama connection first
+        is_connected, connection_msg = check_ollama_connection(OLLAMA_BASE_URL, OLLAMA_MODEL)
+        if not is_connected:
+            return None, f"Ollama connection failed: {connection_msg}"
+        
         # Use the last modified files if multiple exist
         pdf_file = max(pdf_files, key=os.path.getmtime) if pdf_files else None
         txt_file = max(txt_files, key=os.path.getmtime) if txt_files else None
@@ -348,10 +347,10 @@ def load_backend_files():
         txt_name = os.path.basename(txt_file) if txt_file else "None"
         
         # Generate model key
-        model_key = generate_model_key("llama-3.3-70b-versatile", True, pdf_name, txt_name)
+        model_key = generate_model_key(OLLAMA_MODEL, True, pdf_name, txt_name)
         
         # Check if RAG chain already exists
-        existing_chain = state_manager.get_rag_chain(model_key, GROQ_API_KEY)
+        existing_chain = state_manager.get_rag_chain(model_key, OLLAMA_BASE_URL)
         if existing_chain:
             CURRENT_MODEL_KEY = model_key
             return model_key, "Using existing RAG system"
@@ -363,8 +362,8 @@ def load_backend_files():
         rag_chain = build_rag_chain_with_model_choice(
             io.BytesIO(pdf_bytes) if pdf_bytes else None,
             io.BytesIO(txt_bytes) if txt_bytes else None,
-            GROQ_API_KEY,
-            model_choice="llama-3.3-70b-versatile",
+            OLLAMA_BASE_URL,
+            model_choice=OLLAMA_MODEL,
             enhanced_mode=True
         )
         
@@ -388,14 +387,25 @@ def load_backend_files():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events for FastAPI"""
-    print("Starting up FastAPI application...")
+    print("Starting up FastAPI application with Local Ollama...")
+    print(f"Ollama Base URL: {OLLAMA_BASE_URL}")
+    print(f"Ollama Model: {OLLAMA_MODEL}")
+    
     try:
+        # Check Ollama connection first
+        is_connected, connection_msg = check_ollama_connection(OLLAMA_BASE_URL, OLLAMA_MODEL)
+        if not is_connected:
+            print(f"❌ {connection_msg}")
+            print("Please run: ollama run hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0")
+        else:
+            print(f"✅ {connection_msg}")
+        
         model_key, message = load_backend_files()
         if model_key:
-            print(f"RAG system initialized successfully: {message}")
+            print(f"✅ RAG system initialized successfully: {message}")
             print(f"Using model key: {model_key}")
         else:
-            print(f"Failed to initialize RAG system: {message}")
+            print(f"❌ Failed to initialize RAG system: {message}")
             print("Please ensure PDF/TXT files exist in the uploaded_files directory")
     except Exception as e:
         print(f"Startup error: {e}")
@@ -406,7 +416,7 @@ async def lifespan(app: FastAPI):
         redis_manager.redis_client.close()
     print("FastAPI application shutting down...")
 
-app = FastAPI(title="SAMNEX AI", lifespan=lifespan)
+app = FastAPI(title="SAMNEX AI - Local Ollama", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -420,21 +430,33 @@ app.add_middleware(
 async def root():
     try:
         redis_status = redis_manager.is_available()
+        ollama_connected, ollama_msg = check_ollama_connection(OLLAMA_BASE_URL, OLLAMA_MODEL)
+        
         return {
-            "message": "AI Agent FastAPI backend is running.",
+            "message": "AI Agent FastAPI backend is running (Local Ollama Mode).",
+            "mode": "local_ollama",
             "docs": "/docs", 
             "health": "/health/",
             "redis_available": redis_status,
+            "ollama_status": {
+                "connected": ollama_connected,
+                "message": ollama_msg,
+                "base_url": OLLAMA_BASE_URL,
+                "model": OLLAMA_MODEL
+            },
             "system_status": {
                 "rag_initialized": CURRENT_MODEL_KEY is not None,
                 "current_model_key": CURRENT_MODEL_KEY,
                 "files_found": bool(glob.glob(os.path.join(UPLOAD_DIR, "*.pdf")) or 
                                   glob.glob(os.path.join(UPLOAD_DIR, "*.txt"))),
-                "upload_dir": os.path.abspath(UPLOAD_DIR)
+                "upload_dir": os.path.abspath(UPLOAD_DIR),
+                "tts_enabled": False,
+                "transcription_enabled": False
             }
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": f"Startup error: {str(e)}"})
+
 def validate_language(text: str) -> bool:
     """Validate input language and format"""
     text = text.strip()
@@ -486,6 +508,14 @@ async def get_answer_optimized(req: QueryRequest):
     if not input_text:
         return JSONResponse(status_code=400, content={"reply": "I'm sorry, I cannot assist with that topic. For more details, please contact the 104/102 helpline numbers."})
 
+    # Check Ollama connection before processing
+    is_connected, connection_msg = check_ollama_connection(OLLAMA_BASE_URL, OLLAMA_MODEL)
+    if not is_connected:
+        return JSONResponse(
+            status_code=503,
+            content={"reply": f"Ollama service unavailable: {connection_msg}. Please ensure Ollama is running with the BharatGPT model."}
+        )
+
     detected_lang = detect_language(input_text)
     if not validate_language(input_text):
         return JSONResponse(
@@ -509,7 +539,7 @@ async def get_answer_optimized(req: QueryRequest):
             content={"reply": "No RAG system initialized. Please check backend file configuration."}
         )
     
-    rag_chain = state_manager.get_rag_chain(CURRENT_MODEL_KEY, GROQ_API_KEY)
+    rag_chain = state_manager.get_rag_chain(CURRENT_MODEL_KEY, OLLAMA_BASE_URL)
     if not rag_chain:
         return JSONResponse(
             status_code=400, 
@@ -517,6 +547,7 @@ async def get_answer_optimized(req: QueryRequest):
         )
 
     try:
+        # Modified for text-only with Ollama
         result = process_scheme_query_with_retry(rag_chain, input_text)
         assistant_reply = result[0] if isinstance(result, tuple) else result or ""
 
@@ -546,7 +577,9 @@ async def get_answer_optimized(req: QueryRequest):
             "reply": assistant_reply,
             "session_id": session_id,
             "model_key": CURRENT_MODEL_KEY,
-            "lang": detected_lang
+            "lang": detected_lang,
+            "mode": "local_ollama",
+            "model_used": OLLAMA_MODEL
         }
     except Exception as e:
         logging.error(f"Query processing error: {e}")
@@ -558,95 +591,33 @@ async def get_chat_history(session_id: str = Depends(get_session_id)):
     return {
         "chat_history": history,
         "session_id": session_id,
-        "redis_available": redis_manager.is_available()
+        "redis_available": redis_manager.is_available(),
+        "mode": "local_ollama"
     }
 
-@app.post("/transcribe/")
-async def transcribe_audio_endpoint(audio_file: UploadFile = File(...)):
-    """
-    Uses EXACT same transcribe_audio function as Streamlit
-    """
-    try:
-        audio_bytes = await audio_file.read()
-        if len(audio_bytes) == 0:
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "error": "Empty audio file received"}
-            )
-        groq_client = Groq(api_key=GROQ_API_KEY)
-        from core.transcription import transcribe_audio
-        success, result = transcribe_audio(groq_client, audio_bytes)
-
-        from core.tts_services import detect_language
-        detected_lang = detect_language(result) if success else None
-        if not success or detected_lang not in {"en", "hi", "mr"}:
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "error": "Transcription only allowed in Marathi, Hindi, or English. Other languages are not supported."}
-            )
-
-        return {
-            "success": True,
-            "transcription": result,
-            "lang": detected_lang
-        }
-    except Exception as e:
-        print(f"Transcription error: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return JSONResponse(
-            status_code=500,
-            content={
-                "success": False,
-                "error": f"Transcription failed: {str(e)}"
-            }
-        )
-
-@app.post("/tts/")
-async def tts_endpoint(text: str = Form(...), lang_preference: str = Form("auto")):
-    """
-    Uses EXACT same generate_audio_response function as Streamlit
-    """
-    try:
-        if not text.strip():
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "error": "Empty text provided"}
-            )
-        
-        from core.tts_services import generate_audio_response
-        
-        audio_data, lang_used, cache_hit = generate_audio_response(
-            text=text,
-            lang_preference=lang_preference if lang_preference != "auto" else None
-        )
-        
-        if audio_data:
-            audio_base64 = base64.b64encode(audio_data).decode('utf-8')
-            return {
-                "success": True,
-                "audio_base64": audio_base64,
-                "lang_used": lang_used,
-                "cache_hit": cache_hit
-            }
-        else:
-            return JSONResponse(
-                status_code=400,
-                content={
-                    "success": False,
-                    "error": f"TTS generation failed for language: {lang_used}"
-                }
-            )
-            
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": f"Transcription failed: {str(e)}"})
 @app.get("/health/")
 async def health_check():
+    ollama_connected, ollama_msg = check_ollama_connection(OLLAMA_BASE_URL, OLLAMA_MODEL)
+    
     return {
-        "status": "ok",
+        "status": "ok" if ollama_connected else "degraded",
         "redis_available": redis_manager.is_available(),
-        "timestamp": time.time()
+        "ollama_status": {
+            "connected": ollama_connected,
+            "message": ollama_msg,
+            "base_url": OLLAMA_BASE_URL,
+            "model": OLLAMA_MODEL
+        },
+        "timestamp": time.time(),
+        "mode": "local_ollama",
+        "features": {
+            "rag_enabled": True,
+            "tts_enabled": False,
+            "transcription_enabled": False,
+            "local_processing": True
+        }
     }
+
 @app.get("/sessions/")
 async def list_sessions():
     if not redis_manager.is_available():
@@ -654,7 +625,7 @@ async def list_sessions():
     try:
         keys = redis_manager.redis_client.keys("chat:*")
         sessions = [key.decode().replace("chat:", "") for key in keys]
-        return {"sessions": sessions}
+        return {"sessions": sessions, "mode": "local_ollama"}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -663,13 +634,13 @@ async def clear_session(session_id: str):
     if redis_manager.is_available():
         try:
             redis_manager.redis_client.delete(f"chat:{session_id}")
-            return {"message": f"Session {session_id} cleared"}
+            return {"message": f"Session {session_id} cleared", "mode": "local_ollama"}
         except Exception as e:
             return JSONResponse(status_code=500, content={"error": str(e)})
     else:
         # If using in-memory fallback, clear chat history if present
         state_manager._memory_fallback[f"chat:{session_id}"] = []
-        return {"message": f"Session {session_id} cleared (memory only)"}
+        return {"message": f"Session {session_id} cleared (memory only)", "mode": "local_ollama"}
 
 @app.post("/sessions/start")
 async def start_session():
@@ -681,10 +652,10 @@ async def start_session():
         
         if redis_manager.is_available():
             redis_manager.set_chat_history(session_id, [], expire_hours=24)
-            return {"session_id": session_id, "message": "New session started"}
+            return {"session_id": session_id, "message": "New session started", "mode": "local_ollama"}
         else:
             state_manager._memory_fallback[f"chat:{session_id}"] = []
-            return {"session_id": session_id, "message": "New session started (memory only)"}
+            return {"session_id": session_id, "message": "New session started (memory only)", "mode": "local_ollama"}
             
     except Exception as e:
         return JSONResponse(
@@ -705,12 +676,72 @@ async def end_session(session_id: str):
 
             state_manager.clear_cache(f"*_{session_id}")
             
-        return {"message": f"Session {session_id} ended and cleaned up"}
+        return {"message": f"Session {session_id} ended and cleaned up", "mode": "local_ollama"}
         
     except Exception as e:
         return JSONResponse(
             status_code=500,
             content={"error": f"Failed to end session: {str(e)}"}
+        )
+
+@app.get("/status/")
+async def get_system_status():
+    """Get comprehensive system status for local Ollama mode"""
+    ollama_connected, ollama_msg = check_ollama_connection(OLLAMA_BASE_URL, OLLAMA_MODEL)
+    
+    return {
+        "mode": "local_ollama",
+        "system_status": {
+            "rag_initialized": CURRENT_MODEL_KEY is not None,
+            "current_model_key": CURRENT_MODEL_KEY,
+            "redis_available": redis_manager.is_available(),
+            "ollama_connected": ollama_connected,
+            "ollama_message": ollama_msg,
+            "files_found": bool(glob.glob(os.path.join(UPLOAD_DIR, "*.pdf")) or 
+                              glob.glob(os.path.join(UPLOAD_DIR, "*.txt"))),
+            "upload_dir": os.path.abspath(UPLOAD_DIR),
+        },
+        "ollama_config": {
+            "base_url": OLLAMA_BASE_URL,
+            "model": OLLAMA_MODEL,
+            "status": "connected" if ollama_connected else "disconnected"
+        },
+        "features": {
+            "text_queries": True,
+            "multilingual_support": True,
+            "caching": True,
+            "session_management": True,
+            "local_processing": True,
+            "tts": False,
+            "speech_transcription": False
+        },
+        "supported_languages": ["en", "hi", "mr"],
+        "cache_stats": state_manager.get_cache_stats(),
+        "timestamp": time.time()
+    }
+
+@app.get("/ollama/models")
+async def get_available_models():
+    """Get list of available Ollama models"""
+    try:
+        import requests
+        response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5)
+        if response.status_code == 200:
+            models = response.json().get('models', [])
+            return {
+                "available_models": models,
+                "current_model": OLLAMA_MODEL,
+                "ollama_url": OLLAMA_BASE_URL
+            }
+        else:
+            return JSONResponse(
+                status_code=503,
+                content={"error": f"Ollama server responded with status {response.status_code}"}
+            )
+    except Exception as e:
+        return JSONResponse(
+            status_code=503,
+            content={"error": f"Cannot connect to Ollama: {str(e)}"}
         )
     
 if __name__ == "__main__":
