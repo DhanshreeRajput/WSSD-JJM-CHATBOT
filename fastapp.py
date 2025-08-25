@@ -416,7 +416,7 @@ async def lifespan(app: FastAPI):
         redis_manager.redis_client.close()
     print("FastAPI application shutting down...")
 
-app = FastAPI(title="SAMNEX AI - Local Ollama", lifespan=lifespan)
+app = FastAPI(title="Welcome to WSSD-JJM ChatBot", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

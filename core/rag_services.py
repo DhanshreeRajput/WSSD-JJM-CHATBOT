@@ -4,7 +4,6 @@ import time
 import hashlib
 import re
 import langid
-from core.transcription import SUPPORTED_LANGUAGES  
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
