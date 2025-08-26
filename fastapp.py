@@ -15,14 +15,14 @@ import traceback
 
 # Import with error handling
 try:
-    from rag_services import (  # Fixed import path - remove core/
+    from rag_services import (
         build_rag_chain_with_model_choice, 
         process_scheme_query_with_retry, 
         detect_language,
         check_ollama_connection,
         clear_query_cache
     )
-    from config import (  # Fixed import path - remove utils/
+    from config import (
         OLLAMA_BASE_URL, 
         OLLAMA_MODEL, 
         UPLOAD_DIR, 
@@ -53,8 +53,9 @@ class QueryRequest(BaseModel):
     model: str = "gemma3:270m"
     enhanced_mode: bool = True
     session_id: Optional[str] = None
+    language: str = "en"  # Added language parameter
 
-    @field_validator('input_text')  # Fixed validator syntax
+    @field_validator('input_text')
     @classmethod
     def validate_input_text(cls, v):
         if not v or not v.strip():
@@ -63,8 +64,16 @@ class QueryRequest(BaseModel):
             raise ValueError('Input text too long (max 500 characters)')
         return v.strip()
 
-# Global variables
-CURRENT_RAG_CHAIN = None
+    @field_validator('language')
+    @classmethod
+    def validate_language(cls, v):
+        supported_languages = ['en', 'hi', 'mr']
+        if v not in supported_languages:
+            raise ValueError(f'Language must be one of: {supported_languages}')
+        return v
+
+# Global variables - now with language support
+CURRENT_RAG_CHAINS = {}  # Store RAG chains per language
 CURRENT_MODEL_KEY = None
 CHAT_HISTORY = {}
 RATE_LIMIT_TRACKER = {}
@@ -73,7 +82,8 @@ SYSTEM_STATUS = {
     "total_queries": 0,
     "successful_queries": 0,
     "failed_queries": 0,
-    "last_error": None
+    "last_error": None,
+    "supported_languages": ["en", "hi", "mr"]
 }
 
 def generate_session_id() -> str:
@@ -83,9 +93,9 @@ def generate_session_id() -> str:
     animals = ["lion", "swan", "tiger", "elephant", "zebra", "giraffe", "panda", "koala"]
     return f"{random.choice(adjectives)}_{random.choice(animals)}_{os.urandom(2).hex()}_{int(time.time())}"
 
-def generate_model_key(model: str, pdf_name: str, txt_name: str) -> str:
-    """Generate a unique key for the model configuration"""
-    key_string = f"{model}_{pdf_name}_{txt_name}"
+def generate_model_key(model: str, pdf_name: str, txt_name: str, language: str = "en") -> str:
+    """Generate a unique key for the model configuration with language"""
+    key_string = f"{model}_{pdf_name}_{txt_name}_{language}"
     return hashlib.md5(key_string.encode()).hexdigest()
 
 def setup_upload_directory():
@@ -100,8 +110,8 @@ def setup_upload_directory():
         return None
 
 def load_backend_files():
-    """Load files from backend directory and initialize RAG system"""
-    global CURRENT_RAG_CHAIN, CURRENT_MODEL_KEY
+    """Load files from backend directory and initialize RAG systems for all languages"""
+    global CURRENT_RAG_CHAINS, CURRENT_MODEL_KEY
     
     try:
         upload_dir = setup_upload_directory()
@@ -134,9 +144,6 @@ def load_backend_files():
         
         logger.info(f"Using files: PDF={pdf_name}, TXT={txt_name}")
         
-        # Generate model key
-        model_key = generate_model_key(OLLAMA_MODEL, pdf_name, txt_name)
-        
         # Create file objects that mimic uploaded files
         class MockUploadedFile:
             def __init__(self, file_path):
@@ -149,21 +156,33 @@ def load_backend_files():
         pdf_file_obj = MockUploadedFile(pdf_file) if pdf_file else None
         txt_file_obj = MockUploadedFile(txt_file) if txt_file else None
         
-        # Build RAG chain
-        logger.info("Building RAG chain...")
-        rag_chain = build_rag_chain_with_model_choice(
-            pdf_file_obj,
-            txt_file_obj,
-            OLLAMA_BASE_URL,
-            model_choice=OLLAMA_MODEL,
-            enhanced_mode=True
-        )
+        # Build RAG chains for all supported languages
+        supported_languages = SYSTEM_STATUS["supported_languages"]
+        CURRENT_RAG_CHAINS = {}
         
-        CURRENT_RAG_CHAIN = rag_chain
+        for language in supported_languages:
+            try:
+                logger.info(f"Building RAG chain for language: {language}")
+                rag_chain = build_rag_chain_with_model_choice(
+                    pdf_file_obj,
+                    txt_file_obj,
+                    OLLAMA_BASE_URL,
+                    model_choice=OLLAMA_MODEL,
+                    enhanced_mode=True,
+                    target_language=language
+                )
+                CURRENT_RAG_CHAINS[language] = rag_chain
+                logger.info(f"RAG chain built successfully for {language}")
+            except Exception as e:
+                logger.error(f"Failed to build RAG chain for {language}: {e}")
+                return None, f"Failed to build RAG chain for {language}: {str(e)}"
+        
+        # Generate model key
+        model_key = generate_model_key(OLLAMA_MODEL, pdf_name, txt_name, "multi")
         CURRENT_MODEL_KEY = model_key
         
-        logger.info("RAG chain built successfully")
-        return model_key, f"RAG system initialized with {pdf_name}, {txt_name}"
+        logger.info("All RAG chains built successfully")
+        return model_key, f"RAG system initialized with {pdf_name}, {txt_name} for languages: {', '.join(supported_languages)}"
         
     except Exception as e:
         logger.error(f"Failed to load backend files: {e}")
@@ -183,8 +202,8 @@ def check_rate_limit(session_id: str) -> tuple[bool, str]:
     RATE_LIMIT_TRACKER[session_id] = current_time
     return True, "OK"
 
-def add_to_chat_history(session_id: str, user_msg: str, bot_msg: str):
-    """Add message to chat history"""
+def add_to_chat_history(session_id: str, user_msg: str, bot_msg: str, language: str = "en"):
+    """Add message to chat history with language support"""
     try:
         if session_id not in CHAT_HISTORY:
             CHAT_HISTORY[session_id] = []
@@ -192,6 +211,7 @@ def add_to_chat_history(session_id: str, user_msg: str, bot_msg: str):
         CHAT_HISTORY[session_id].insert(0, {
             "user": user_msg,
             "assistant": bot_msg,
+            "language": language,
             "timestamp": time.strftime("%H:%M:%S"),
             "session_id": session_id,
             "created_at": time.time()
@@ -203,8 +223,8 @@ def add_to_chat_history(session_id: str, user_msg: str, bot_msg: str):
     except Exception as e:
         logger.error(f"Failed to add to chat history: {e}")
 
-def validate_input(text: str) -> tuple[bool, str]:
-    """Validate user input"""
+def validate_input(text: str, language: str = "en") -> tuple[bool, str]:
+    """Validate user input with language awareness"""
     try:
         text = text.strip()
         
@@ -215,16 +235,9 @@ def validate_input(text: str) -> tuple[bool, str]:
             return False, "Message too long (max 500 characters)"
         
         # Check for supported languages
-        import re
-        supported_patterns = {
-            'en': r'[a-zA-Z]',
-            'hi': r'[\u0900-\u097F]',
-            'mr': r'[\u0900-\u097F]'
-        }
-        
-        is_supported = any(re.search(pattern, text) for pattern in supported_patterns.values())
-        if not is_supported:
-            return False, "Only English, Hindi, and Marathi are supported"
+        supported_languages = {"en", "hi", "mr"}
+        if language not in supported_languages:
+            return False, f"Language '{language}' not supported. Use: {', '.join(supported_languages)}"
         
         return True, "Valid"
         
@@ -236,7 +249,7 @@ def validate_input(text: str) -> tuple[bool, str]:
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     print("=" * 60)
-    print("🚀 STARTING SAMNEX AI CHATBOT BACKEND")
+    print("🚀 STARTING SAMNEX AI CHATBOT BACKEND (MULTILINGUAL)")
     print("=" * 60)
     
     # Print configuration
@@ -259,12 +272,13 @@ async def lifespan(app: FastAPI):
             print(f"❌ Ollama check failed: {e}")
         
         # Initialize RAG system
-        print("🔧 Initializing RAG system...")
+        print("🔧 Initializing multilingual RAG system...")
         try:
             model_key, message = load_backend_files()
             if model_key:
                 print(f"✅ {message}")
                 print(f"🔑 Model key: {model_key}")
+                print(f"🌐 Languages supported: {', '.join(SYSTEM_STATUS['supported_languages'])}")
             else:
                 print(f"❌ Failed to initialize RAG system: {message}")
                 print(f"📁 Please ensure PDF/TXT files exist in: {os.path.abspath(UPLOAD_DIR)}")
@@ -284,20 +298,20 @@ async def lifespan(app: FastAPI):
     
     yield
     
-    print("🔄 FastAPI application shutting down...")
-    if CURRENT_RAG_CHAIN:
-        print("🧹 Cleaning up RAG chain...")
+    print("🔥 FastAPI application shutting down...")
+    if CURRENT_RAG_CHAINS:
+        print("🧹 Cleaning up RAG chains...")
     print("👋 Goodbye!")
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="SAMNEX AI ChatBot Backend", 
-    description="Local Ollama-powered RAG chatbot with multilingual support",
-    version="1.0.0",
+    title="SAMNEX AI ChatBot Backend (Multilingual)", 
+    description="Local Ollama-powered RAG chatbot with multilingual support (English, Hindi, Marathi)",
+    version="1.1.0",
     lifespan=lifespan
 )
 
-# CRITICAL: Add CORS middleware BEFORE other middleware and routes
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # In production, specify your domain
@@ -331,15 +345,16 @@ async def root():
         uptime = time.time() - SYSTEM_STATUS["startup_time"]
         
         return {
-            "message": "SAMNEX AI ChatBot Backend is running",
-            "mode": "local_ollama",
-            "version": "1.0.0",
+            "message": "SAMNEX AI ChatBot Backend is running (Multilingual)",
+            "mode": "local_ollama_multilingual",
+            "version": "1.1.0",
             "uptime_seconds": round(uptime, 2),
             "docs": "/docs",
             "health": "/health/",
             "status": "/status/",
             "system_status": {
-                "rag_initialized": CURRENT_RAG_CHAIN is not None,
+                "rag_initialized": len(CURRENT_RAG_CHAINS) > 0,
+                "languages_available": list(CURRENT_RAG_CHAINS.keys()),
                 "ollama_connected": ollama_connected,
                 "ollama_message": ollama_msg,
                 "files_found": bool(glob.glob(os.path.join(UPLOAD_DIR, "*.pdf")) or 
@@ -355,7 +370,8 @@ async def root():
                 "ollama_url": OLLAMA_BASE_URL,
                 "model": OLLAMA_MODEL,
                 "upload_dir": UPLOAD_DIR,
-                "rate_limit_seconds": RATE_LIMIT_SECONDS
+                "rate_limit_seconds": RATE_LIMIT_SECONDS,
+                "supported_languages": SYSTEM_STATUS["supported_languages"]
             }
         }
     except Exception as e:
@@ -367,36 +383,100 @@ async def root():
 
 @app.post("/query/")
 async def process_query(request: QueryRequest):
-    """Main query processing endpoint"""
+    """Main query processing endpoint with language support"""
     try:
+        # Update system statistics
+        SYSTEM_STATUS["total_queries"] += 1
+        
         # Validate input
         input_text = request.input_text.strip()
+        language = request.language.lower()
+        
         if not input_text:
+            SYSTEM_STATUS["failed_queries"] += 1
+            error_msg = {
+                'en': "Please provide a valid query.",
+                'hi': "कृपया एक वैध प्रश्न प्रदान करें।",
+                'mr': "कृपया एक वैध प्रश्न प्रदान करा।"
+            }
             return JSONResponse(
                 status_code=400,
-                content={"reply": "Please provide a valid query."}
+                content={"reply": error_msg.get(language, error_msg['en'])}
             )
 
-        # Check RAG system initialization
-        if not CURRENT_RAG_CHAIN:
+        # Validate language
+        if language not in SYSTEM_STATUS["supported_languages"]:
+            SYSTEM_STATUS["failed_queries"] += 1
+            return JSONResponse(
+                status_code=400,
+                content={"reply": f"Language '{language}' not supported. Use: {', '.join(SYSTEM_STATUS['supported_languages'])}"}
+            )
+
+        # Check RAG system initialization for the requested language
+        if language not in CURRENT_RAG_CHAINS:
+            SYSTEM_STATUS["failed_queries"] += 1
+            error_msg = {
+                'en': f"System is not ready for {language}. Please check if documents are loaded and Ollama is running.",
+                'hi': f"{language} के लिए सिस्टम तैयार नहीं है। कृपया जांचें कि दस्तावेज़ लोड हैं और Ollama चल रहा है।",
+                'mr': f"{language} साठी सिस्टम तयार नाही. कृपया तपासा की दस्तऐवज लोड केले आहेत आणि Ollama चालू आहे."
+            }
             return JSONResponse(
                 status_code=503,
-                content={"reply": "System is not ready. Please check if documents are loaded and Ollama is running."}
+                content={"reply": error_msg.get(language, error_msg['en'])}
             )
 
-        # Process the query using the RAG system
-        result = process_scheme_query_with_retry(CURRENT_RAG_CHAIN, input_text)
-        assistant_reply = result[0] if isinstance(result, tuple) else result or ""
+        # Get the appropriate RAG chain for the language
+        rag_chain = CURRENT_RAG_CHAINS[language]
 
-        # Validate response
-        if len(assistant_reply.strip()) < 10:
+        # Process the query using the RAG system with language specification
+        try:
+            result = process_scheme_query_with_retry(rag_chain, input_text, target_language=language)
+            assistant_reply = result[0] if isinstance(result, tuple) else result or ""
+
+            # Validate response
+            if len(assistant_reply.strip()) < 5:
+                SYSTEM_STATUS["failed_queries"] += 1
+                error_msg = {
+                    'en': "No relevant information found in the uploaded documents. Please ask a question that is covered in your PDF/TXT files.",
+                    'hi': "अपलोड किए गए दस्तावेज़ों में कोई प्रासंगिक जानकारी नहीं मिली। कृपया ऐसा प्रश्न पूछें जो आपकी PDF/TXT फाइलों में शामिल हो।",
+                    'mr': "अपलोड केलेल्या दस्तऐवजांमध्ये कोणतीही संबंधित माहिती सापडली नाही. कृपया तुमच्या PDF/TXT फाईल्समध्ये समाविष्ट असलेला प्रश्न विचारा."
+                }
+                return JSONResponse(
+                    status_code=400,
+                    content={"reply": error_msg.get(language, error_msg['en'])}
+                )
+
+            # Success
+            SYSTEM_STATUS["successful_queries"] += 1
+            
+            # Add to chat history
+            session_id = request.session_id or "default"
+            add_to_chat_history(session_id, input_text, assistant_reply, language)
+            
+            return {
+                "reply": assistant_reply,
+                "language": language,
+                "detected_language": result[2] if isinstance(result, tuple) and len(result) > 2 else language
+            }
+
+        except Exception as query_error:
+            SYSTEM_STATUS["failed_queries"] += 1
+            SYSTEM_STATUS["last_error"] = str(query_error)
+            logger.error(f"Query processing error for language {language}: {query_error}")
+            
+            error_msg = {
+                'en': "An error occurred while processing your query. Please try again later.",
+                'hi': "आपके प्रश्न को संसाधित करते समय एक त्रुटि हुई। कृपया बाद में पुनः प्रयास करें।",
+                'mr': "तुमचा प्रश्न प्रक्रिया करताना त्रुटी झाली. कृपया नंतर पुन्हा प्रयत्न करा."
+            }
             return JSONResponse(
-                status_code=400,
-                content={"reply": "No relevant information found in the uploaded documents. Please ask a question that is covered in your PDF/TXT files."}
+                status_code=500,
+                content={"reply": error_msg.get(language, error_msg['en'])}
             )
 
-        return {"reply": assistant_reply}
     except Exception as e:
+        SYSTEM_STATUS["failed_queries"] += 1
+        SYSTEM_STATUS["last_error"] = str(e)
         logging.error(f"Query processing error: {e}")
         return JSONResponse(
             status_code=500,
@@ -412,7 +492,7 @@ async def health_check():
         except Exception as e:
             ollama_connected, ollama_msg = False, f"Health check failed: {str(e)}"
         
-        system_status = "healthy" if (ollama_connected and CURRENT_RAG_CHAIN) else "degraded"
+        system_status = "healthy" if (ollama_connected and len(CURRENT_RAG_CHAINS) > 0) else "degraded"
         if not ollama_connected:
             system_status = "critical"
         
@@ -429,7 +509,8 @@ async def health_check():
                 "model": OLLAMA_MODEL
             },
             "rag_status": {
-                "initialized": CURRENT_RAG_CHAIN is not None,
+                "initialized": len(CURRENT_RAG_CHAINS) > 0,
+                "languages_available": list(CURRENT_RAG_CHAINS.keys()),
                 "model_key": CURRENT_MODEL_KEY
             },
             "system_info": {
@@ -443,7 +524,8 @@ async def health_check():
                 "failed_queries": SYSTEM_STATUS["failed_queries"],
                 "success_rate": round(
                     (SYSTEM_STATUS["successful_queries"] / max(1, SYSTEM_STATUS["total_queries"])) * 100, 2
-                )
+                ),
+                "supported_languages": SYSTEM_STATUS["supported_languages"]
             },
             "last_error": SYSTEM_STATUS["last_error"]
         }
@@ -460,23 +542,53 @@ async def health_check():
 
 # Additional endpoints...
 @app.get("/suggestions/")
-async def get_suggestions():
-    """Get suggested questions for the UI"""
-    suggestions = [
-        "What government schemes are available?",
-        "How do I apply for benefits?",
-        "What are the eligibility criteria?",
-        "Where can I get more information?",
-        "What documents are required?",
-        "How long does the process take?",
-        "सरकारी योजनाएं क्या उपलब्ध हैं?",
-        "मुझे कैसे आवेदन करना चाहिए?",
-        "पात्रता मापदंड क्या हैं?"
-    ]
+async def get_suggestions(language: str = "en"):
+    """Get suggested questions for the UI in specified language"""
+    suggestions_by_language = {
+        "en": [
+            "What government schemes are available?",
+            "How do I apply for benefits?",
+            "What are the eligibility criteria?",
+            "Where can I get more information?",
+            "What documents are required?",
+            "How long does the process take?"
+        ],
+        "hi": [
+            "सरकारी योजनाएं क्या उपलब्ध हैं?",
+            "मुझे कैसे आवेदन करना चाहिए?",
+            "पात्रता मापदंड क्या हैं?",
+            "मुझे और जानकारी कहाँ मिल सकती है?",
+            "कौन से दस्तावेज़ चाहिए?",
+            "प्रक्रिया में कितना समय लगता है?"
+        ],
+        "mr": [
+            "कोणत्या सरकारी योजना उपलब्ध आहेत?",
+            "मी कसा अर्ज करू?",
+            "पात्रता निकष काय आहेत?",
+            "मला अधिक माहिती कुठे मिळेल?",
+            "कोणते कागदपत्रे लागतील?",
+            "प्रक्रियेला किती वेळ लागतो?"
+        ]
+    }
+    
+    suggestions = suggestions_by_language.get(language, suggestions_by_language["en"])
     
     return {
         "suggestions": suggestions,
+        "language": language,
         "total": len(suggestions)
+    }
+
+@app.get("/languages/")
+async def get_supported_languages():
+    """Get list of supported languages"""
+    return {
+        "supported_languages": SYSTEM_STATUS["supported_languages"],
+        "language_details": {
+            "en": {"name": "English", "native_name": "English"},
+            "hi": {"name": "Hindi", "native_name": "हिंदी"},
+            "mr": {"name": "Marathi", "native_name": "मराठी"}
+        }
     }
 
 if __name__ == "__main__":

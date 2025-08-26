@@ -1,4 +1,4 @@
-# rag_services.py - Optimized version for faster responses
+# rag_services.py - Updated version with proper language enforcement
 import tempfile
 import os
 import time
@@ -19,6 +19,19 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError
 # Removed TTS dependency - now hardcoded to False for text-only mode
 TTS_AVAILABLE = False
 
+# Language mappings and templates
+LANGUAGE_PROMPTS = {
+    'en': "Answer in English only. Be concise and direct.",
+    'hi': "केवल हिंदी में उत्तर दें। संक्षिप्त और स्पष्ट जवाब दें।",
+    'mr': "फक्त मराठीत उत्तर द्या। संक्षिप्त आणि स्पष्ट उत्तर द्या।"
+}
+
+FALLBACK_RESPONSES = {
+    'en': "Please contact 104/102 helpline for more information.",
+    'hi': "अधिक जानकारी के लिए कृपया 104/102 हेल्पलाइन संपर्क करें।",
+    'mr': "अधिक माहितीसाठी कृपया 104/102 हेल्पलाइन संपर्क साधा।"
+}
+
 # For language detection of the query
 try:
     from langdetect import detect, DetectorFactory
@@ -33,9 +46,9 @@ _query_cache = {}
 _cache_max_size = 100  # Increased cache size
 _cache_lock = threading.Lock()
 
-def get_query_hash(query_text):
-    """Generate a hash for caching queries"""
-    return hashlib.md5(query_text.encode()).hexdigest()
+def get_query_hash(query_text, language='en'):
+    """Generate a hash for caching queries with language"""
+    return hashlib.md5(f"{query_text}_{language}".encode()).hexdigest()
 
 def cache_result(query_hash, result):
     """Thread-safe cache result"""
@@ -67,8 +80,12 @@ def detect_language_langid(text):
     lang, _ = langid.classify(text)
     return lang, SUPPORTED_LANGUAGES.get(lang, "Unsupported")
 
-def post_process_response(response_text):
-    """Final post-processing to remove any instruction artifacts"""
+def get_language_instruction(language_code):
+    """Get language-specific instruction for the model"""
+    return LANGUAGE_PROMPTS.get(language_code, LANGUAGE_PROMPTS['en'])
+
+def post_process_response(response_text, target_language='en'):
+    """Final post-processing to remove any instruction artifacts and ensure language consistency"""
     
     # If response contains instruction-like text, extract only the factual content
     lines = response_text.split('\n')
@@ -85,7 +102,10 @@ def post_process_response(response_text):
             'guidelines:', 
             'your task is',
             'answer in the same language',
-            'keep the answer to'
+            'keep the answer to',
+            'answer in english only',
+            'केवल हिंदी में',
+            'फक्त मराठीत'
         ]):
             continue
         
@@ -99,15 +119,17 @@ def post_process_response(response_text):
     if clean_lines:
         result = ' '.join(clean_lines)
         # Limit to first 2 sentences
-        sentences = re.split(r'[.!?]+', result)
+        sentences = re.split(r'[.!?।]+', result)
         if len(sentences) >= 2:
-            result = '. '.join(sentences[:2]).strip() + '.'
+            result = '. '.join(sentences[:2]).strip()
+            if not result.endswith(('.', '।', '?', '!')):
+                result += '।' if target_language in ['hi', 'mr'] else '.'
         return result
     
     return response_text
 
-def clean_response(response_text, original_query):
-    """Clean the response to ensure it's concise and removes template artifacts"""
+def clean_response(response_text, original_query, target_language='en'):
+    """Clean the response to ensure it's concise and in the correct language"""
     
     # Remove template instructions and common artifacts
     template_patterns = [
@@ -120,7 +142,10 @@ def clean_response(response_text, original_query):
         r"Context:.*?(?:\n|$)",
         r"Question:.*?(?:\n|$)",
         r"Answer:.*?(?:\n|$)",
-        r"Brief Answer:.*?(?:\n|$)"
+        r"Brief Answer:.*?(?:\n|$)",
+        r"Answer in \w+ only.*?(?:\n|\.)",
+        r"केवल हिंदी में.*?(?:\n|।)",
+        r"फक्त मराठीत.*?(?:\n|।)"
     ]
     
     cleaned_text = response_text
@@ -139,39 +164,39 @@ def clean_response(response_text, original_query):
         "provide only the most essential",
         "include contact numbers",
         "maximum 2-3 sentences",
-        "only use information"
+        "only use information",
+        "answer in english only",
+        "केवल हिंदी में",
+        "फक्त मराठीत"
     ]
     
     for starter in instruction_starters:
-        if cleaned_text.lower().startswith(starter):
+        if cleaned_text.lower().startswith(starter.lower()):
             # Find the first sentence that doesn't contain instructions
-            sentences = re.split(r'[.!?]+', cleaned_text)
+            sentences = re.split(r'[.!?।]+', cleaned_text)
             for i, sentence in enumerate(sentences):
                 if len(sentence.strip()) > 20 and not any(inst in sentence.lower() for inst in instruction_starters):
                     cleaned_text = '. '.join(sentences[i:])
                     break
     
     # Limit to 2-3 sentences
-    sentences = re.split(r'[.!?]+', cleaned_text)
+    sentence_separators = r'[.!?।]+'
+    sentences = re.split(sentence_separators, cleaned_text)
     if len(sentences) > 3:
-        cleaned_text = '. '.join(sentences[:2]) + '.'
+        cleaned_text = '. '.join(sentences[:2])
+        if not cleaned_text.endswith(('.', '।', '?', '!')):
+            cleaned_text += '।' if target_language in ['hi', 'mr'] else '.'
     
-    # Fallback responses
+    # Fallback responses in correct language
     if len(cleaned_text.strip()) < 10:
-        lang = detect_language(original_query)
-        if lang == 'hi':
-            return "कृपया 104/102 हेल्पलाइन संपर्क करें।"
-        elif lang == 'mr':
-            return "कृपया 104/102 हेल्पलाइन संपर्क साधा."
-        else:
-            return "Please contact 104/102 helpline."
+        return FALLBACK_RESPONSES.get(target_language, FALLBACK_RESPONSES['en'])
     
     return cleaned_text.strip()
 
 # --- RAG Chain Building ---
-def build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url="http://localhost:11434", enhanced_mode=True, model_choice="gemma3:270m"):
+def build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url="http://localhost:11434", enhanced_mode=True, model_choice="gemma3:270m", target_language='en'):
     """
-    Build a RAG chain from PDF and/or TXT files using Ollama with optimizations.
+    Build a RAG chain from PDF and/or TXT files using Ollama with language-specific optimization.
     """
     pdf_path = txt_path = None
     if not (pdf_file or txt_file):
@@ -202,11 +227,10 @@ def build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url="http://local
         # Adjust parameters for local model - smaller chunks for better performance
         chunk_size = 300 if enhanced_mode else 400
         max_chunks = 3 if enhanced_mode else 5
-        max_tokens = 150  # Reduced for shorter responses
 
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
-            chunk_overlap=max(60, int(chunk_size * 0.2)), # Overlap as a percentage of chunk_size
+            chunk_overlap=max(60, int(chunk_size * 0.2)),
             separators=["\n\n", "\n", ". ", "! ", "? ", ", ", " ", ""],
             length_function=len
         )
@@ -217,11 +241,16 @@ def build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url="http://local
             
         retriever = TFIDFRetriever.from_documents(splits, k=min(max_chunks, len(splits)))
 
-        # Ultra-simple template to prevent any instruction leakage
-        template = """{context}
+        # Language-aware template
+        language_instruction = get_language_instruction(target_language)
+        
+        template = f"""{language_instruction}
 
-Q: {question}
-A:"""
+Context: {{context}}
+
+Question: {{question}}
+
+Answer:"""
 
         custom_prompt = PromptTemplate(
             template=template,
@@ -233,7 +262,7 @@ A:"""
             base_url=ollama_base_url,
             model=model_choice,
             temperature=0.0,  # Make it completely deterministic
-            num_predict=100,  # Further reduced for very short responses
+            num_predict=120,  # Sufficient for multi-language responses
             top_k=1,  # Use only the most probable token
             top_p=0.1,  # Very focused sampling
             callbacks=[]  # Remove callback to avoid extra logging
@@ -252,11 +281,11 @@ A:"""
             if os.path.exists(f_path):
                 os.unlink(f_path)
 
-def build_rag_chain_with_model_choice(pdf_file, txt_file, ollama_base_url="http://localhost:11434", model_choice="gemma3:270m", enhanced_mode=True):
+def build_rag_chain_with_model_choice(pdf_file, txt_file, ollama_base_url="http://localhost:11434", model_choice="gemma3:270m", enhanced_mode=True, target_language='en'):
     """
-    Build RAG chain with Ollama model. This is the primary RAG chain builder.
+    Build RAG chain with Ollama model and language specification.
     """
-    return build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url, enhanced_mode, model_choice)
+    return build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url, enhanced_mode, model_choice, target_language)
 
 def detect_language(text):
     """
@@ -277,25 +306,28 @@ def detect_language(text):
     except Exception:
         return 'en'
 
-# --- Optimized Query Processing ---
-def process_scheme_query_with_retry(rag_chain, user_query, max_retries=2):
+# --- Optimized Query Processing with Language Support ---
+def process_scheme_query_with_retry(rag_chain, user_query, max_retries=2, target_language='en'):
     """
-    Optimized query processing with timeout and faster execution
+    Optimized query processing with timeout, faster execution, and language enforcement
     """
     # Quick language detection
     supported_languages = {"en", "hi", "mr"}
     detected_lang = detect_language(user_query)
     
-    if detected_lang not in supported_languages:
-        return (
-            "केवळ मराठी, हिंदी आणि इंग्रजी भाषा समर्थित आहे.",
-            "",
-            detected_lang,
-            {"text_cache": "skipped", "audio_cache": "not_generated"}
-        )
+    # Use target language if specified, otherwise use detected language
+    response_language = target_language if target_language in supported_languages else detected_lang
+    
+    if response_language not in supported_languages:
+        if target_language == 'hi':
+            return ("केवल मराठी, हिंदी आणि इंग्रजी भाषा समर्थित आहे.", "", 'hi', {"text_cache": "skipped", "audio_cache": "not_generated"})
+        elif target_language == 'mr':
+            return ("केवल मराठी, हिंदी आणि इंग्रजी भाषा समर्थित आहे.", "", 'mr', {"text_cache": "skipped", "audio_cache": "not_generated"})
+        else:
+            return ("Only Marathi, Hindi, and English languages are supported.", "", 'en', {"text_cache": "skipped", "audio_cache": "not_generated"})
 
-    # Check cache first
-    query_hash = get_query_hash(user_query.lower().strip())
+    # Check cache first with language consideration
+    query_hash = get_query_hash(user_query.lower().strip(), response_language)
     cached_result = get_cached_result(query_hash)
     
     if cached_result:
@@ -315,24 +347,31 @@ def process_scheme_query_with_retry(rag_chain, user_query, max_retries=2):
         for attempt in range(max_retries):
             try:
                 if is_comprehensive_query:
-                    result_text = query_all_schemes_optimized(rag_chain)
+                    result_text = query_all_schemes_optimized(rag_chain, response_language)
                 else:
-                    # Process the query
-                    result = rag_chain.invoke({"query": user_query})
+                    # Process the query with language context
+                    language_aware_query = f"[{response_language.upper()}] {user_query}"
+                    result = rag_chain.invoke({"query": language_aware_query})
                     
                     # Extract the actual result properly
                     if isinstance(result, dict):
-                        result_text = result.get('result', 'No results found.')
+                        result_text = result.get('result', FALLBACK_RESPONSES.get(response_language, 'No results found.'))
                     elif isinstance(result, str):
                         result_text = result
                     else:
                         result_text = str(result)
                     
                     # Additional cleaning for instruction artifacts
-                    result_text = post_process_response(result_text)
+                    result_text = post_process_response(result_text, response_language)
                 
-                # Clean the result to remove any template artifacts
-                result_text = clean_response(result_text, user_query)
+                # Clean the result to remove any template artifacts and ensure correct language
+                result_text = clean_response(result_text, user_query, response_language)
+                
+                # Final validation - if response seems to be in wrong language, use fallback
+                if response_language in ['hi', 'mr'] and not any(char in result_text for char in ['अ', 'आ', 'इ', 'ई', 'उ', 'ऊ', 'ए', 'ऐ', 'ओ', 'औ', 'क', 'ख', 'ग', 'घ']):
+                    result_text = FALLBACK_RESPONSES.get(response_language, result_text)
+                elif response_language == 'en' and any(char in result_text for char in ['अ', 'आ', 'इ', 'ई', 'उ', 'ऊ']):
+                    result_text = FALLBACK_RESPONSES.get(response_language, result_text)
                 
                 # Cache the result
                 cache_result(query_hash, result_text)
@@ -348,21 +387,26 @@ def process_scheme_query_with_retry(rag_chain, user_query, max_retries=2):
                         time.sleep(wait_time)
                         continue
                     else:
-                        result_text = "Ollama server unavailable. Please try again."
+                        result_text = FALLBACK_RESPONSES.get(response_language, "Server unavailable. Please try again.")
                         break
                 
                 elif "Request too large" in error_str or "context" in error_str.lower():
-                    result_text = "Query too complex. Please ask about specific schemes."
+                    if response_language == 'hi':
+                        result_text = "प्रश्न बहुत जटिल है। कृपया विशिष्ट योजनाओं के बारे में पूछें।"
+                    elif response_language == 'mr':
+                        result_text = "प्रश्न खूप जटिल आहे. कृपया विशिष्ट योजनांबद्दल विचारा."
+                    else:
+                        result_text = "Query too complex. Please ask about specific schemes."
                     break
                 
                 else:
-                    result_text = "Error processing query."
+                    result_text = FALLBACK_RESPONSES.get(response_language, "Error processing query.")
                     break
         else:
-            result_text = "Unable to process query."
+            result_text = FALLBACK_RESPONSES.get(response_language, "Unable to process query.")
     
     # Return format: (text_result, empty_audio_string, language, cache_info)
-    return (result_text, "", detected_lang, {"text_cache": cache_status, "audio_cache": "not_generated"})
+    return (result_text, "", response_language, {"text_cache": cache_status, "audio_cache": "not_generated"})
 
 # --- Scheme Extraction & Specialized Queries ---
 def extract_schemes_from_text(text_content):
@@ -390,24 +434,45 @@ def extract_schemes_from_text(text_content):
 
     return sorted(list(extracted_schemes))
 
-def query_all_schemes_optimized(rag_chain):
-    """Optimized scheme extractor using targeted queries and regex."""
+def query_all_schemes_optimized(rag_chain, target_language='en'):
+    """Optimized scheme extractor using targeted queries and regex with language support."""
     try:
-        context_query = "List all government schemes mentioned in documents"
+        if target_language == 'hi':
+            context_query = "सभी सरकारी योजनाओं की सूची"
+            response_prefix = "मुख्य योजनाएं मिलीं"
+        elif target_language == 'mr':
+            context_query = "सर्व सरकारी योजनांची यादी"
+            response_prefix = "मुख्य योजना सापडल्या"
+        else:
+            context_query = "List all government schemes mentioned in documents"
+            response_prefix = "Found main schemes"
+            
         response = rag_chain.invoke({"query": context_query})
         content_to_parse = response.get('result', '')
         
         all_extracted_schemes = extract_schemes_from_text(content_to_parse)
 
         if not all_extracted_schemes:
-            return "No government schemes found in documents."
+            return FALLBACK_RESPONSES.get(target_language, "No government schemes found in documents.")
 
         # Keep it concise - max 5 schemes
         limited_schemes = all_extracted_schemes[:5]
-        response_text = f"Found {len(limited_schemes)} main schemes: " + ", ".join(limited_schemes)
+        
+        if target_language == 'hi':
+            response_text = f"{len(limited_schemes)} मुख्य योजनाएं मिलीं: " + ", ".join(limited_schemes)
+        elif target_language == 'mr':
+            response_text = f"{len(limited_schemes)} मुख्य योजना सापडल्या: " + ", ".join(limited_schemes)
+        else:
+            response_text = f"Found {len(limited_schemes)} main schemes: " + ", ".join(limited_schemes)
+            
         return response_text
     except Exception as e:
-        return f"Error extracting schemes: {str(e)}"
+        if target_language == 'hi':
+            return f"योजना निकालने में त्रुटि: {str(e)}"
+        elif target_language == 'mr':
+            return f"योजना काढण्यात त्रुटी: {str(e)}"
+        else:
+            return f"Error extracting schemes: {str(e)}"
 
 def get_model_options():
     """Return available Ollama models with their characteristics."""
