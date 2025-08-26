@@ -836,7 +836,7 @@
 
                 const requestBody = {
                     input_text: message,
-                    model: 'gemma3:270m',
+                    model: 'llama3.1:8b',
                     enhanced_mode: true,
                     session_id: CONFIG.SESSION_ID
                 };

@@ -67,109 +67,8 @@ def detect_language_langid(text):
     lang, _ = langid.classify(text)
     return lang, SUPPORTED_LANGUAGES.get(lang, "Unsupported")
 
-def post_process_response(response_text):
-    """Final post-processing to remove any instruction artifacts"""
-    
-    # If response contains instruction-like text, extract only the factual content
-    lines = response_text.split('\n')
-    clean_lines = []
-    
-    for line in lines:
-        line = line.strip()
-        # Skip lines that look like instructions
-        if any(phrase in line.lower() for phrase in [
-            'be direct and concise', 
-            'maximum 2-3 sentences',
-            'provide only the most essential',
-            'include contact numbers',
-            'guidelines:', 
-            'your task is',
-            'answer in the same language',
-            'keep the answer to'
-        ]):
-            continue
-        
-        # Skip lines that start with bullet points or asterisks
-        if line.startswith(('*', '•', '-')) and any(word in line.lower() for word in ['direct', 'concise', 'essential', 'contact']):
-            continue
-            
-        if line and len(line) > 10:
-            clean_lines.append(line)
-    
-    if clean_lines:
-        result = ' '.join(clean_lines)
-        # Limit to first 2 sentences
-        sentences = re.split(r'[.!?]+', result)
-        if len(sentences) >= 2:
-            result = '. '.join(sentences[:2]).strip() + '.'
-        return result
-    
-    return response_text
-
-def clean_response(response_text, original_query):
-    """Clean the response to ensure it's concise and removes template artifacts"""
-    
-    # Remove template instructions and common artifacts
-    template_patterns = [
-        r"You are an?.*?Assistant.*?(?:\n|\.)",
-        r"Your task is.*?(?:\n|\.)",
-        r"Guidelines:.*?(?:\n|$)",
-        r"Based on the context.*?(?:\n|\.)",
-        r"Keep the answer.*?(?:\n|\.)",
-        r"\*.*?(?:\n|$)",  # Remove lines starting with *
-        r"Context:.*?(?:\n|$)",
-        r"Question:.*?(?:\n|$)",
-        r"Answer:.*?(?:\n|$)",
-        r"Brief Answer:.*?(?:\n|$)"
-    ]
-    
-    cleaned_text = response_text
-    for pattern in template_patterns:
-        cleaned_text = re.sub(pattern, "", cleaned_text, flags=re.IGNORECASE | re.DOTALL)
-    
-    # Remove bullet points and formatting
-    cleaned_text = re.sub(r'[•\-*]\s*', '', cleaned_text)
-    cleaned_text = re.sub(r'\n+', ' ', cleaned_text)
-    cleaned_text = re.sub(r'\s+', ' ', cleaned_text)
-    cleaned_text = cleaned_text.strip()
-    
-    # If response starts with common instruction phrases, remove them
-    instruction_starters = [
-        "be direct and concise",
-        "provide only the most essential",
-        "include contact numbers",
-        "maximum 2-3 sentences",
-        "only use information"
-    ]
-    
-    for starter in instruction_starters:
-        if cleaned_text.lower().startswith(starter):
-            # Find the first sentence that doesn't contain instructions
-            sentences = re.split(r'[.!?]+', cleaned_text)
-            for i, sentence in enumerate(sentences):
-                if len(sentence.strip()) > 20 and not any(inst in sentence.lower() for inst in instruction_starters):
-                    cleaned_text = '. '.join(sentences[i:])
-                    break
-    
-    # Limit to 2-3 sentences
-    sentences = re.split(r'[.!?]+', cleaned_text)
-    if len(sentences) > 3:
-        cleaned_text = '. '.join(sentences[:2]) + '.'
-    
-    # Fallback responses
-    if len(cleaned_text.strip()) < 10:
-        lang = detect_language(original_query)
-        if lang == 'hi':
-            return "कृपया 104/102 हेल्पलाइन संपर्क करें।"
-        elif lang == 'mr':
-            return "कृपया 104/102 हेल्पलाइन संपर्क साधा."
-        else:
-            return "Please contact 104/102 helpline."
-    
-    return cleaned_text.strip()
-
-# --- RAG Chain Building ---
-def build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url="http://localhost:11434", enhanced_mode=True, model_choice="gemma3:270m"):
+# --- Optimized RAG Chain Building ---
+def build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url="http://localhost:11434", enhanced_mode=True, model_choice="llama3.1:8b"):
     """
     Build a RAG chain from PDF and/or TXT files using Ollama with optimizations.
     """
@@ -217,11 +116,27 @@ def build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url="http://local
             
         retriever = TFIDFRetriever.from_documents(splits, k=min(max_chunks, len(splits)))
 
-        # Ultra-simple template to prevent any instruction leakage
-        template = """{context}
+        # Streamlined template for faster processing
+        template = """You are a concise Knowledge Assistant for quick government scheme queries.
 
-Q: {question}
-A:"""
+Your task is to give a brief, direct answer (maximum 2-3 lines) in the user's language.
+
+Guidelines:
+* Always answer in the **same language as the question**.
+* Be direct and concise - maximum 2-3 sentences.
+* Provide only the most essential information.
+* Include contact numbers (104/102) only when specifically asked about contact details.
+* No markdown formatting, no section headers, no bullet points.
+* If no relevant information exists, respond briefly:
+  - **Marathi**: "कृपया 104/102 हेल्पलाइन संपर्क साधा."  
+  - **Hindi**: "कृपया 104/102 हेल्पलाइन संपर्क करें।"  
+  - **English**: "Please contact 104/102 helpline."
+
+Context: {context}
+
+Question: {question}
+
+Brief Answer:"""
 
         custom_prompt = PromptTemplate(
             template=template,
@@ -252,7 +167,7 @@ A:"""
             if os.path.exists(f_path):
                 os.unlink(f_path)
 
-def build_rag_chain_with_model_choice(pdf_file, txt_file, ollama_base_url="http://localhost:11434", model_choice="gemma3:270m", enhanced_mode=True):
+def build_rag_chain_with_model_choice(pdf_file, txt_file, ollama_base_url="http://localhost:11434", model_choice="llama3.1:8b", enhanced_mode=True):
     """
     Build RAG chain with Ollama model. This is the primary RAG chain builder.
     """
@@ -412,7 +327,7 @@ def query_all_schemes_optimized(rag_chain):
 def get_model_options():
     """Return available Ollama models with their characteristics."""
     return {
-        "gemma3:270m": {
+        "llama3.1:8b": {
             "name": "BharatGPT 3B Indic (Recommended)", 
             "description": "Best for Indian languages including Hindi, Marathi, and English."
         },
@@ -426,8 +341,8 @@ def get_model_options():
         }
     }
 
-def check_ollama_connection(base_url="http://localhost:11434", model="gemma3:270m"):
-    """Check if Ollama server is running and model is available"""
+def check_ollama_connection(base_url="http://localhost:11434", model="llama3.1:8b"):
+    """Fast connection check with timeout"""
     try:
         import requests
         response = requests.get(f"{base_url}/api/tags", timeout=3)  # Reduced timeout
