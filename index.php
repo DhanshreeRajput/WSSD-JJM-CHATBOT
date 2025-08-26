@@ -126,6 +126,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            position: relative;
         }
 
         .chat-header-info {
@@ -176,6 +177,8 @@
             overflow-y: auto;
             background: #f8f9fa;
             max-height: 300px;
+            display: flex;
+            flex-direction: column;
         }
 
         .message {
@@ -229,6 +232,7 @@
             border-radius: 18px;
             border-bottom-left-radius: 8px;
             max-width: 60px;
+            margin-bottom: 15px;
         }
 
         .typing-dots {
@@ -284,6 +288,7 @@
             display: flex;
             flex-wrap: wrap;
             gap: 6px;
+            margin-bottom: 10px;
         }
 
         .suggestion-btn {
@@ -353,7 +358,7 @@
 
         .status-indicator {
             padding: 8px 16px;
-            margin: 10px;
+            margin: 10px 0;
             border-radius: 8px;
             font-size: 12px;
             text-align: center;
@@ -371,26 +376,10 @@
             border: 1px solid #81e6d9;
         }
 
-        /* Language Selector */
-        .language-selector {
-            position: absolute;
-            bottom: 10px;
-            right: 80px;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 5px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            color: white;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 480px) {
-            .chat-window {
-                right: 10px;
-                left: 10px;
-                width: auto;
-                bottom: 80px;
-            }
+        .status-indicator.info {
+            background: #e6f3ff;
+            color: #2563eb;
+            border: 1px solid #93c5fd;
         }
 
         .quick-actions {
@@ -417,8 +406,8 @@
 
         .connection-status {
             position: absolute;
-            top: 5px;
-            left: 5px;
+            top: 10px;
+            right: 10px;
             width: 8px;
             height: 8px;
             border-radius: 50%;
@@ -429,6 +418,31 @@
         .connection-status.connected {
             background: #27ae60;
         }
+
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-width: 300px;
+            display: none;
+            z-index: 10001;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 480px) {
+            .chat-window {
+                right: 10px;
+                left: 10px;
+                width: auto;
+                bottom: 80px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -438,6 +452,14 @@
         <p>Your FastAPI chatbot is ready! Click the orange chat bubble to start a conversation.</p>
         <br>
         <p style="font-size: 1em; opacity: 0.7;">This demo page shows how the chatbot widget integrates with your website.</p>
+    </div>
+
+    <!-- Debug Info -->
+    <div class="debug-info" id="debugInfo">
+        <div>Connection: <span id="debugConnection">Unknown</span></div>
+        <div>Session: <span id="debugSession">None</span></div>
+        <div>API URL: <span id="debugApi">Loading...</span></div>
+        <div>Last Error: <span id="debugError">None</span></div>
     </div>
 
     <!-- Chat Widget -->
@@ -458,31 +480,21 @@
                         </svg>
                     </div>
                     <div class="chat-header-text">
-                        <h3>WSSD Assistant</h3>
+                        <h3>SAMNEX Assistant</h3>
                         <p id="connectionStatus">Connecting...</p>
                     </div>
-                    <div class="connection-status" id="connectionIndicator"></div>
                 </div>
                 <button class="close-chat" id="closeChat">&times;</button>
-                <div class="language-selector">
-                    <span id="currentLang">English-IN</span>
-                </div>
+                <div class="connection-status" id="connectionIndicator"></div>
             </div>
 
             <div class="chat-messages" id="chatMessages">
-                <div class="message bot">
-                    <div class="message-content">
-                        Hello! I'm your AI assistant. How can I help you today?
-                        <div class="message-time">Just now</div>
+                <div class="typing-indicator" id="typingIndicator">
+                    <div class="typing-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
                     </div>
-                </div>
-            </div>
-
-            <div class="typing-indicator" id="typingIndicator">
-                <div class="typing-dots">
-                    <span></span>
-                    <span></span>
-                    <span></span>
                 </div>
             </div>
 
@@ -497,6 +509,7 @@
                     <div class="quick-actions">
                         <button class="quick-action-btn" id="clearChat">Clear Chat</button>
                         <button class="quick-action-btn" id="newSession">New Session</button>
+                        <button class="quick-action-btn" id="toggleDebug">Debug</button>
                     </div>
                 </div>
 
@@ -523,34 +536,51 @@
             API_BASE_URL: 'http://localhost:8000',
             SESSION_ID: generateSessionId(),
             MAX_RETRIES: 3,
-            RETRY_DELAY: 1000
+            RETRY_DELAY: 2000,
+            CONNECTION_CHECK_INTERVAL: 30000,
+            DEBUG: false
         };
 
         // DOM Elements
-        const chatBubble = document.getElementById('chatBubble');
-        const chatWindow = document.getElementById('chatWindow');
-        const closeChat = document.getElementById('closeChat');
-        const chatMessages = document.getElementById('chatMessages');
-        const messageInput = document.getElementById('messageInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const chatForm = document.getElementById('chatForm');
-        const typingIndicator = document.getElementById('typingIndicator');
-        const notificationBadge = document.getElementById('notificationBadge');
-        const clearChatBtn = document.getElementById('clearChat');
-        const newSessionBtn = document.getElementById('newSession');
-        const connectionStatus = document.getElementById('connectionStatus');
-        const connectionIndicator = document.getElementById('connectionIndicator');
-        const suggestionButtons = document.getElementById('suggestionButtons');
+        const elements = {
+            chatBubble: document.getElementById('chatBubble'),
+            chatWindow: document.getElementById('chatWindow'),
+            closeChat: document.getElementById('closeChat'),
+            chatMessages: document.getElementById('chatMessages'),
+            messageInput: document.getElementById('messageInput'),
+            sendBtn: document.getElementById('sendBtn'),
+            chatForm: document.getElementById('chatForm'),
+            typingIndicator: document.getElementById('typingIndicator'),
+            notificationBadge: document.getElementById('notificationBadge'),
+            clearChatBtn: document.getElementById('clearChat'),
+            newSessionBtn: document.getElementById('newSession'),
+            toggleDebugBtn: document.getElementById('toggleDebug'),
+            connectionStatus: document.getElementById('connectionStatus'),
+            connectionIndicator: document.getElementById('connectionIndicator'),
+            suggestionButtons: document.getElementById('suggestionButtons'),
+            debugInfo: document.getElementById('debugInfo'),
+            debugConnection: document.getElementById('debugConnection'),
+            debugSession: document.getElementById('debugSession'),
+            debugApi: document.getElementById('debugApi'),
+            debugError: document.getElementById('debugError')
+        };
 
         // State
         let isWindowOpen = false;
         let isTyping = false;
         let messageCount = 0;
         let isConnected = false;
+        let isSending = false;
+        let connectionCheckInterval;
 
         // Utility Functions
         function generateSessionId() {
-            return 'session_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+            const adjectives = ["sharp", "sleepy", "fluffy", "dazzling", "crazy", "bold", "happy", "silly"];
+            const animals = ["lion", "swan", "tiger", "elephant", "zebra", "giraffe", "panda", "koala"];
+            const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+            const randomAnimal = animals[Math.floor(Math.random() * animals.length)];
+            const randomNumber = Math.floor(Math.random() * 1000);
+            return `${randomAdjective}_${randomAnimal}_${randomNumber}_${Date.now()}`;
         }
 
         function getCurrentTime() {
@@ -567,80 +597,144 @@
             return div.innerHTML;
         }
 
+        function updateDebugInfo() {
+            if (!CONFIG.DEBUG) return;
+            
+            elements.debugConnection.textContent = isConnected ? 'Connected' : 'Disconnected';
+            elements.debugSession.textContent = CONFIG.SESSION_ID.substring(0, 20) + '...';
+            elements.debugApi.textContent = CONFIG.API_BASE_URL;
+        }
+
+        function logError(error, context = '') {
+            console.error(`[ChatBot Error${context ? ' - ' + context : ''}]:`, error);
+            if (CONFIG.DEBUG) {
+                elements.debugError.textContent = `${context}: ${error.message || error}`;
+            }
+        }
+
         function updateConnectionStatus(connected) {
             isConnected = connected;
-            connectionIndicator.className = `connection-status ${connected ? 'connected' : ''}`;
-            connectionStatus.textContent = connected ? 'Online • Ready to help' : 'Offline • Reconnecting...';
+            elements.connectionIndicator.className = `connection-status ${connected ? 'connected' : ''}`;
+            elements.connectionStatus.textContent = connected ? 'Online • Ready to help' : 'Offline • Reconnecting...';
+            
+            updateSendButtonState();
+            updateDebugInfo();
+        }
+
+        function updateSendButtonState() {
+            const hasText = elements.messageInput.value.trim().length > 0;
+            elements.sendBtn.disabled = !isConnected || isSending || !hasText;
         }
 
         // UI Functions
         function toggleChatWindow() {
             isWindowOpen = !isWindowOpen;
-            chatWindow.style.display = isWindowOpen ? 'flex' : 'none';
+            elements.chatWindow.style.display = isWindowOpen ? 'flex' : 'none';
             
             if (isWindowOpen) {
-                messageInput.focus();
-                notificationBadge.style.display = 'none';
+                elements.messageInput.focus();
+                elements.notificationBadge.style.display = 'none';
                 messageCount = 0;
+                
+                // Initialize with welcome message if no messages exist
+                const existingMessages = elements.chatMessages.querySelectorAll('.message');
+                if (existingMessages.length === 0) {
+                    addWelcomeMessage();
+                }
+                
+                // Start connection check
+                checkConnection();
             }
         }
 
-        function addMessage(content, isUser = false, timestamp = null) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
-            
-            const time = timestamp || getCurrentTime();
-            
-            messageDiv.innerHTML = `
+        function addWelcomeMessage() {
+            const welcomeDiv = document.createElement('div');
+            welcomeDiv.className = 'message bot';
+            welcomeDiv.innerHTML = `
                 <div class="message-content">
-                    ${isUser ? escapeHtml(content) : content}
-                    <div class="message-time">${time}</div>
+                    Hello! I'm your AI assistant. I can help you with information from uploaded documents. How can I help you today?
+                    <div class="message-time">${getCurrentTime()}</div>
                 </div>
             `;
             
-            chatMessages.insertBefore(messageDiv, typingIndicator);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-            
-            if (!isUser && !isWindowOpen) {
-                messageCount++;
-                notificationBadge.textContent = messageCount;
-                notificationBadge.style.display = 'flex';
+            elements.chatMessages.insertBefore(welcomeDiv, elements.typingIndicator);
+            scrollToBottom();
+        }
+
+        function addMessage(content, isUser = false, timestamp = null) {
+            try {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+                
+                const time = timestamp || getCurrentTime();
+                
+                messageDiv.innerHTML = `
+                    <div class="message-content">
+                        ${isUser ? escapeHtml(content) : content}
+                        <div class="message-time">${time}</div>
+                    </div>
+                `;
+                
+                // Insert before typing indicator
+                elements.chatMessages.insertBefore(messageDiv, elements.typingIndicator);
+                scrollToBottom();
+                
+                if (!isUser && !isWindowOpen) {
+                    messageCount++;
+                    elements.notificationBadge.textContent = messageCount;
+                    elements.notificationBadge.style.display = 'flex';
+                }
+            } catch (error) {
+                logError(error, 'addMessage');
             }
+        }
+
+        function scrollToBottom() {
+            setTimeout(() => {
+                elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+            }, 100);
         }
 
         function showTyping() {
             isTyping = true;
-            typingIndicator.style.display = 'block';
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            elements.typingIndicator.style.display = 'block';
+            scrollToBottom();
         }
 
         function hideTyping() {
             isTyping = false;
-            typingIndicator.style.display = 'none';
+            elements.typingIndicator.style.display = 'none';
         }
 
         function showStatus(message, type = 'error') {
-            const statusDiv = document.createElement('div');
-            statusDiv.className = `status-indicator ${type}`;
-            statusDiv.textContent = message;
-            
-            chatMessages.insertBefore(statusDiv, typingIndicator);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-            
-            setTimeout(() => {
-                if (statusDiv.parentNode) {
-                    statusDiv.remove();
-                }
-            }, 5000);
+            try {
+                const statusDiv = document.createElement('div');
+                statusDiv.className = `status-indicator ${type}`;
+                statusDiv.textContent = message;
+                
+                elements.chatMessages.insertBefore(statusDiv, elements.typingIndicator);
+                scrollToBottom();
+                
+                setTimeout(() => {
+                    if (statusDiv.parentNode) {
+                        statusDiv.remove();
+                    }
+                }, 5000);
+            } catch (error) {
+                logError(error, 'showStatus');
+            }
         }
 
         function formatBotResponse(text) {
+            if (!text) return 'No response received.';
+            
             // Convert markdown-style formatting to HTML
             let formatted = text
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/## (.*?)(\n|$)/g, '<h4>$1</h4>')
-                .replace(/### (.*?)(\n|$)/g, '<h5>$1</h5>')
+                .replace(/## (.*?)(\n|$)/g, '<h4 style="margin: 10px 0 5px 0; color: #333;">$1</h4>')
+                .replace(/### (.*?)(\n|$)/g, '<h5 style="margin: 8px 0 4px 0; color: #555;">$1</h5>')
+                .replace(/\n\n/g, '<br><br>')
                 .replace(/\n/g, '<br>');
             
             return formatted;
@@ -648,85 +742,101 @@
 
         // API Functions
         async function sendMessage(message, retries = 0) {
-            if (!message.trim()) return;
+            if (!message.trim() || isSending) return;
 
-            // Disable form
-            sendBtn.disabled = true;
-            messageInput.disabled = true;
-
-            // Add user message to chat
-            addMessage(message, true);
-            messageInput.value = '';
-            showTyping();
-
+            isSending = true;
+            
             try {
+                // Add user message to chat
+                addMessage(message, true);
+                elements.messageInput.value = '';
+                showTyping();
+                updateSendButtonState();
+
+                console.log('Sending message:', message);
+
+                const requestBody = {
+                    input_text: message,
+                    model: 'hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0',
+                    enhanced_mode: true,
+                    session_id: CONFIG.SESSION_ID
+                };
+
                 const response = await fetch(`${CONFIG.API_BASE_URL}/query/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        input_text: message,
-                        model: 'hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0',
-                        enhanced_mode: true,
-                        session_id: CONFIG.SESSION_ID
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
                 hideTyping();
 
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.reply || `Server error: ${response.status}`);
+                    let errorMessage;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.reply || errorData.error || `Server error: ${response.status}`;
+                    } catch {
+                        errorMessage = `Server error: ${response.status} ${response.statusText}`;
+                    }
+                    throw new Error(errorMessage);
                 }
 
                 const data = await response.json();
+                console.log('Response data:', data);
+                
                 updateConnectionStatus(true);
                 
                 if (data.reply) {
                     const formattedReply = formatBotResponse(data.reply);
                     addMessage(formattedReply, false);
                 } else {
-                    showStatus('Received empty response from server', 'error');
+                    addMessage("I apologize, but I didn't receive a proper response. Please try again.", false);
                 }
+                
             } catch (error) {
                 hideTyping();
-                updateConnectionStatus(false);
-                console.error('Error sending message:', error);
+                logError(error, 'sendMessage');
                 
-                if (retries < CONFIG.MAX_RETRIES) {
+                if (retries < CONFIG.MAX_RETRIES && (
+                    error.message.includes('fetch') || 
+                    error.message.includes('network') ||
+                    error.message.includes('connection') ||
+                    error.message.includes('timeout') ||
+                    error.message.includes('Server error: 503') ||
+                    error.message.includes('Server error: 502')
+                )) {
+                    showStatus(`Connection issue. Retrying... (${retries + 1}/${CONFIG.MAX_RETRIES})`, 'info');
                     setTimeout(() => {
                         sendMessage(message, retries + 1);
                     }, CONFIG.RETRY_DELAY);
-                    showStatus(`Retrying... (${retries + 1}/${CONFIG.MAX_RETRIES})`, 'error');
+                    return; // Don't reset UI state yet
                 } else {
+                    updateConnectionStatus(false);
                     showStatus(error.message, 'error');
-                    addMessage("I'm having trouble connecting right now. Please try again later or contact support.", false);
+                    addMessage("I'm having trouble connecting right now. Please check if the backend server is running and try again.", false);
                 }
             } finally {
-                // Re-enable form
-                sendBtn.disabled = false;
-                messageInput.disabled = false;
-                messageInput.focus();
+                // Re-enable UI
+                isSending = false;
+                updateSendButtonState();
+                elements.messageInput.focus();
             }
         }
 
         async function clearChat() {
             try {
-                // Clear local chat
-                const messages = chatMessages.querySelectorAll('.message:not(.bot):not(:first-child), .status-indicator');
+                // Clear all messages except typing indicator
+                const messages = elements.chatMessages.querySelectorAll('.message, .status-indicator');
                 messages.forEach(msg => msg.remove());
                 
-                // Keep only the first welcome message
-                const firstMessage = chatMessages.querySelector('.message.bot');
-                firstMessage.querySelector('.message-content').innerHTML = `
-                    Chat cleared! How can I help you today?
-                    <div class="message-time">${getCurrentTime()}</div>
-                `;
+                // Add new welcome message
+                addWelcomeMessage();
                 
                 showStatus('Chat cleared successfully', 'success');
             } catch (error) {
-                console.error('Error clearing chat:', error);
+                logError(error, 'clearChat');
                 showStatus('Failed to clear chat', 'error');
             }
         }
@@ -734,33 +844,51 @@
         async function startNewSession() {
             try {
                 CONFIG.SESSION_ID = generateSessionId();
+                console.log('New session started:', CONFIG.SESSION_ID);
                 
-                // Clear local chat
-                const messages = chatMessages.querySelectorAll('.message:not(.bot):not(:first-child), .status-indicator');
+                // Clear all messages except typing indicator
+                const messages = elements.chatMessages.querySelectorAll('.message, .status-indicator');
                 messages.forEach(msg => msg.remove());
                 
-                // Update welcome message
-                const firstMessage = chatMessages.querySelector('.message.bot');
-                firstMessage.querySelector('.message-content').innerHTML = `
-                    New session started! How can I help you today?
-                    <div class="message-time">${getCurrentTime()}</div>
-                `;
+                // Add new welcome message
+                addWelcomeMessage();
                 
                 showStatus('New session started', 'success');
+                updateDebugInfo();
             } catch (error) {
-                console.error('Error starting new session:', error);
+                logError(error, 'startNewSession');
                 showStatus('Failed to start new session', 'error');
             }
         }
 
         async function checkConnection() {
             try {
-                const response = await fetch(`${CONFIG.API_BASE_URL}/health/`);
-                const data = await response.json();
+                const response = await fetch(`${CONFIG.API_BASE_URL}/health/`, {
+                    method: 'GET'
+                });
                 
-                updateConnectionStatus(response.ok && data.ollama_status?.connected);
-                
-                return response.ok;
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Health check response:', data);
+                    
+                    const connected = data.ollama_status?.connected && data.rag_status?.initialized;
+                    updateConnectionStatus(connected);
+                    
+                    if (!connected) {
+                        let message = 'System not ready';
+                        if (!data.ollama_status?.connected) {
+                            message = 'Ollama not connected';
+                        } else if (!data.rag_status?.initialized) {
+                            message = 'RAG system not initialized';
+                        }
+                        showStatus(message, 'error');
+                    }
+                    
+                    return connected;
+                } else {
+                    updateConnectionStatus(false);
+                    return false;
+                }
             } catch (error) {
                 console.error('Connection check failed:', error);
                 updateConnectionStatus(false);
@@ -768,68 +896,69 @@
             }
         }
 
-        // Event Listeners
-        chatBubble.addEventListener('click', toggleChatWindow);
-        closeChat.addEventListener('click', toggleChatWindow);
+        function toggleDebug() {
+            CONFIG.DEBUG = !CONFIG.DEBUG;
+            elements.debugInfo.style.display = CONFIG.DEBUG ? 'block' : 'none';
+            elements.toggleDebugBtn.textContent = CONFIG.DEBUG ? 'Hide Debug' : 'Debug';
+            updateDebugInfo();
+        }
 
-        chatForm.addEventListener('submit', (e) => {
+        // Event Listeners
+        elements.chatBubble.addEventListener('click', toggleChatWindow);
+        elements.closeChat.addEventListener('click', toggleChatWindow);
+        
+        elements.chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const message = messageInput.value.trim();
-            if (message && !sendBtn.disabled && isConnected) {
-                sendMessage(message);
-            } else if (!isConnected) {
-                showStatus('Not connected to server. Please wait...', 'error');
+            const message = elements.messageInput.value.trim();
+            if (message && !isSending) {
+                await sendMessage(message);
             }
         });
 
-        // Suggestion button clicks
-        suggestionButtons.addEventListener('click', (e) => {
+        elements.messageInput.addEventListener('input', updateSendButtonState);
+        elements.messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                elements.chatForm.dispatchEvent(new Event('submit'));
+            }
+        });
+
+        elements.clearChatBtn.addEventListener('click', clearChat);
+        elements.newSessionBtn.addEventListener('click', startNewSession);
+        elements.toggleDebugBtn.addEventListener('click', toggleDebug);
+
+        // Suggestion buttons
+        elements.suggestionButtons.addEventListener('click', async (e) => {
             if (e.target.classList.contains('suggestion-btn')) {
                 const suggestion = e.target.textContent;
-                messageInput.value = suggestion;
-                if (isConnected) {
-                    sendMessage(suggestion);
+                elements.messageInput.value = suggestion;
+                updateSendButtonState();
+                if (!isSending && isConnected) {
+                    await sendMessage(suggestion);
                 }
             }
         });
 
-        // Quick actions
-        clearChatBtn.addEventListener('click', clearChat);
-        newSessionBtn.addEventListener('click', startNewSession);
-
-        // Input validation
-        messageInput.addEventListener('input', function() {
-            const length = this.value.length;
-            const maxLength = parseInt(this.getAttribute('maxlength'));
-            
-            if (length > maxLength - 50) {
-                this.style.borderColor = '#f39c12';
-            } else {
-                this.style.borderColor = '#e1e8ed';
-            }
-            
-            // Enable/disable send button
-            sendBtn.disabled = !this.value.trim() || !isConnected;
-        });
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && isWindowOpen) {
-                toggleChatWindow();
-            }
-        });
-
         // Initialize
-        console.log('Chatbot initialized with session:', CONFIG.SESSION_ID);
-        console.log('API Base URL:', CONFIG.API_BASE_URL);
-
-        // Initial connection check
-        window.addEventListener('load', async () => {
-            await checkConnection();
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('ChatBot UI initialized');
+            updateDebugInfo();
             
-            // Periodic connection check
-            setInterval(checkConnection, 30000); // Check every 30 seconds
+            // Set up periodic connection checks
+            connectionCheckInterval = setInterval(checkConnection, CONFIG.CONNECTION_CHECK_INTERVAL);
+            
+            // Initial connection check
+            setTimeout(checkConnection, 1000);
         });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (connectionCheckInterval) {
+                clearInterval(connectionCheckInterval);
+            }
+        });
+
+        console.log('ChatBot script loaded successfully');
     </script>
 </body>
 </html>

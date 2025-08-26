@@ -1,3 +1,4 @@
+# config.py - Fixed version
 import os
 from dotenv import load_dotenv
 
@@ -64,13 +65,3 @@ def validate_config():
         errors.append("TEMPERATURE must be between 0.0 and 2.0")
     
     return errors
-
-if __name__ == "__main__":
-    print_config()
-    errors = validate_config()
-    if errors:
-        print("\n⚠️  Configuration Errors:")
-        for error in errors:
-            print(f"  - {error}")
-    else:
-        print("\n✅ Configuration is valid")
