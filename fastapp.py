@@ -12,6 +12,7 @@ import glob
 from contextlib import asynccontextmanager
 import asyncio
 import traceback
+import re
 
 # Import with error handling
 try:
@@ -245,6 +246,52 @@ def validate_input(text: str, language: str = "en") -> tuple[bool, str]:
         logger.error(f"Input validation error: {e}")
         return False, "Validation error"
 
+def detect_greeting(text: str) -> tuple[bool, str]:
+    """Detect greeting intent and return a normalized key (e.g., 'good_morning')."""
+    try:
+        t = text.strip().lower()
+        t = re.sub(r"[!.,🙂🙏✨⭐️]+", "", t)
+        patterns = [
+            (r"\bgood\s*morning\b|\bसुप्रभात\b|\bशुभ\s*सकाळ\b", "good_morning"),
+            (r"\bgood\s*afternoon\b|\bशुभ\s*दुपार\b", "good_afternoon"),
+            (r"\bgood\s*evening\b|\bशुभ\s*संध्या\b|\bशुभ\s*संध्याकाळ\b", "good_evening"),
+            (r"\bhello\b|\bhey+\b|\bhii+\b|\bhi\b|\bनमस्ते\b|\bनमस्कार\b|\bहॅलो\b|\bहेलो\b|\bहाय\b", "hello"),
+            (r"\bgood\s*night\b", "good_night"),
+        ]
+        for regex, key in patterns:
+            if re.search(regex, t):
+                return True, key
+        return False, ""
+    except Exception:
+        return False, ""
+
+def greeting_reply(language: str, key: str) -> str:
+    """Return a specific greeting reply per detected key and language."""
+    replies = {
+        'en': {
+            'good_morning': "Good Morning! How may I help you today?",
+            'good_afternoon': "Good Afternoon! How may I help you today?",
+            'good_evening': "Good Evening! How may I help you today?",
+            'good_night': "Good Night! Before you go, is there anything I can help with?",
+            'hello': "Hello! How may I help you today?",
+        },
+        'hi': {
+            'good_morning': "सुप्रभात! मैं आज आपकी किस प्रकार सहायता कर सकता/सकती हूँ?",
+            'good_afternoon': "शुभ दोपहर! मैं आपकी कैसे सहायता कर सकता/सकती हूँ?",
+            'good_evening': "शुभ संध्या! मैं आपकी किस प्रकार मदद कर सकता/सकती हूँ?",
+            'good_night': "शुभ रात्रि! जाने से पहले क्या मैं किसी तरह मदद कर सकता/सकती हूँ?",
+            'hello': "नमस्ते! मैं आज आपकी किस प्रकार सहायता कर सकता/सकती हूँ?",
+        },
+        'mr': {
+            'good_morning': "शुभ सकाळ! आज मी तुम्हाला कशात मदत करू शकतो/शकते?",
+            'good_afternoon': "शुभ दुपार! मी कशी मदत करू शकतो/शकते?",
+            'good_evening': "शुभ संध्याकाळ! मी कशात मदत करू शकतो/शकते?",
+            'good_night': "शुभ रात्री! जाण्यापूर्वी मी काही मदत करू शकतो/शकते का?",
+            'hello': "नमस्कार! आज मी तुम्हाला कशात मदत करू शकतो/शकते?",
+        }
+    }
+    return replies.get(language, replies['en']).get(key, replies.get(language, replies['en'])['hello'])
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
@@ -411,6 +458,15 @@ async def process_query(request: QueryRequest):
                 status_code=400,
                 content={"reply": f"Language '{language}' not supported. Use: {', '.join(SYSTEM_STATUS['supported_languages'])}"}
             )
+
+        # Quick greeting intent handling (mirrors user phrase)
+        is_greet, greet_key = detect_greeting(input_text)
+        if is_greet:
+            SYSTEM_STATUS["successful_queries"] += 1
+            session_id = request.session_id or "default"
+            reply_text = greeting_reply(language, greet_key)
+            add_to_chat_history(session_id, input_text, reply_text, language)
+            return {"reply": reply_text, "language": language, "detected_language": language}
 
         # Check RAG system initialization for the requested language
         if language not in CURRENT_RAG_CHAINS:

@@ -13,6 +13,7 @@ from langchain_community.retrievers import TFIDFRetriever
 from langchain.prompts import PromptTemplate
 from langchain.globals import set_verbose
 from langchain.callbacks.base import BaseCallbackHandler
+from config import STRICT_KB_ONLY, SUPPORTED_LANGUAGES
 import threading
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
@@ -30,6 +31,13 @@ FALLBACK_RESPONSES = {
     'en': "Please contact 104/102 helpline for more information.",
     'hi': "अधिक जानकारी के लिए कृपया 104/102 हेल्पलाइन संपर्क करें।",
     'mr': "अधिक माहितीसाठी कृपया 104/102 हेल्पलाइन संपर्क साधा।"
+}
+
+# Refusal when nothing relevant is found in KB
+KB_REFUSAL = {
+    'en': "I don't have information about that in the uploaded documents.",
+    'hi': "अपलोड किए गए दस्तावेज़ों में इस बारे में जानकारी उपलब्ध नहीं है।",
+    'mr': "अपलोड केलेल्या दस्तऐवजांमध्ये याबद्दल माहिती उपलब्ध नाही."
 }
 
 # For language detection of the query
@@ -241,10 +249,15 @@ def build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url="http://local
             
         retriever = TFIDFRetriever.from_documents(splits, k=min(max_chunks, len(splits)))
 
-        # Language-aware template
+        # Language-aware template with strict grounding when enabled
         language_instruction = get_language_instruction(target_language)
+        grounding_rule = (
+            " Only use the information strictly from Context. "
+            "If the Context does not contain the answer, respond with 'NO_CONTEXT_ANSWER'."
+            if STRICT_KB_ONLY else ""
+        )
         
-        template = f"""{language_instruction}
+        template = f"""{language_instruction}{grounding_rule}
 
 Context: {{context}}
 
@@ -349,6 +362,24 @@ def process_scheme_query_with_retry(rag_chain, user_query, max_retries=2, target
                 if is_comprehensive_query:
                     result_text = query_all_schemes_optimized(rag_chain, response_language)
                 else:
+                    # Optional strict KB-only relevance pre-check
+                    if STRICT_KB_ONLY and hasattr(rag_chain, 'retriever') and rag_chain.retriever:
+                        try:
+                            docs = rag_chain.retriever.get_relevant_documents(user_query)
+                        except Exception:
+                            docs = []
+                        normalized_query_words = [
+                            w for w in re.findall(r"[\w']+", user_query.lower())
+                            if len(w) >= 4 and w not in {"what", "when", "where", "which", "whose", "whom", "about", "from", "with", "into", "that", "this", "these", "those", "have", "has", "been", "shall", "will", "should", "would", "could", "how", "many", "much"}
+                        ]
+                        overlap_hits = 0
+                        for doc in docs or []:
+                            text_lower = (getattr(doc, 'page_content', '') or '').lower()
+                            if any(word in text_lower for word in normalized_query_words):
+                                overlap_hits += 1
+                        if overlap_hits == 0:
+                            return (KB_REFUSAL.get(response_language, KB_REFUSAL['en']), "", response_language, {"text_cache": "skipped", "audio_cache": "not_generated"})
+
                     # Process the query with language context
                     language_aware_query = f"[{response_language.upper()}] {user_query}"
                     result = rag_chain.invoke({"query": language_aware_query})
@@ -361,6 +392,10 @@ def process_scheme_query_with_retry(rag_chain, user_query, max_retries=2, target
                     else:
                         result_text = str(result)
                     
+                    # If the model followed the grounding rule, map the sentinel to localized refusal
+                    if STRICT_KB_ONLY and isinstance(result_text, str) and 'NO_CONTEXT_ANSWER' in result_text:
+                        result_text = KB_REFUSAL.get(response_language, KB_REFUSAL['en'])
+
                     # Additional cleaning for instruction artifacts
                     result_text = post_process_response(result_text, response_language)
                 

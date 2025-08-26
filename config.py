@@ -38,6 +38,9 @@ REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", 15))  # 15 second timeout
 CACHE_SIZE = int(os.getenv("CACHE_SIZE", 100))          # Larger cache
 ENABLE_THREADING = os.getenv("ENABLE_THREADING", "true").lower() == "true"
 
+# Answering policy
+STRICT_KB_ONLY = os.getenv("STRICT_KB_ONLY", "true").lower() == "true"
+
 def print_config():
     print("=" * 50)
     print("SAMNEX AI - OPTIMIZED CONFIGURATION")

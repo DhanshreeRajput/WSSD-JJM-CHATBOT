@@ -518,9 +518,24 @@
                 <div class="suggested-questions">
                     <p id="suggestionsLabel">Quick suggestions:</p>
                     <div class="suggestion-buttons" id="suggestionButtons">
-                        <button class="suggestion-btn">What is the role of SWSM in Jal Jeevan Mission?</button>
-                        <button class="suggestion-btn">How does GSDA keep drinking water sources sustainable?</button>
-                        <button class="suggestion-btn">What are the features of Maha Jal Samadhan system?</button>
+                        <button class="suggestion-btn"
+                                data-en="What is the role of SWSM in Jal Jeevan Mission?"
+                                data-hi="जल जीवन मिशन में SWSM की क्या भूमिका है?"
+                                data-mr="जल जीवन मिशनमध्ये SWSM ची भूमिका काय आहे?">
+                            What is the role of SWSM in Jal Jeevan Mission?
+                        </button>
+                        <button class="suggestion-btn"
+                                data-en="How does GSDA keep drinking water sources sustainable?"
+                                data-hi="GSDA पेयजल स्रोतों को टिकाऊ कैसे रखता है?"
+                                data-mr="GSDA पिण्याच्या पाण्याचे स्रोत शाश्वत कसे ठेवते?">
+                            How does GSDA keep drinking water sources sustainable?
+                        </button>
+                        <button class="suggestion-btn"
+                                data-en="What are the features of Maha Jal Samadhan system?"
+                                data-hi="महा जल समाधान प्रणाली की विशेषताएँ क्या हैं?"
+                                data-mr="महा जल समाधान प्रणालीची वैशिष्ट्ये कोणती?">
+                            What are the features of Maha Jal Samadhan system?
+                        </button>
                     </div>
                     <div class="quick-actions">
                         <button class="quick-action-btn" id="clearChat">Clear Chat</button>
@@ -838,7 +853,8 @@
                     input_text: message,
                     model: 'llama3.1:8b',
                     enhanced_mode: true,
-                    session_id: CONFIG.SESSION_ID
+                    session_id: CONFIG.SESSION_ID,
+                    language: CONFIG.CURRENT_LANGUAGE
                 };
 
                 const controller = new AbortController();
