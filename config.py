@@ -9,7 +9,7 @@ load_env_vars()
 
 # Ollama Configuration
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:270m")
 
 # Application Settings
 APP_NAME = os.getenv("APP_NAME", "SAMNEX AI Local")

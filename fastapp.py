@@ -34,7 +34,7 @@ except ImportError as e:
     print("Please ensure rag_services.py and config.py are in the same directory as this file.")
     # Set default values as fallback
     OLLAMA_BASE_URL = "http://localhost:11434"
-    OLLAMA_MODEL = "hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0"
+    OLLAMA_MODEL = "gemma3:270m"
     UPLOAD_DIR = "uploaded_files"
     RATE_LIMIT_SECONDS = 2
     
@@ -50,7 +50,7 @@ logger = logging.getLogger(__name__)
 
 class QueryRequest(BaseModel):
     input_text: str
-    model: str = "hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0"
+    model: str = "gemma3:270m"
     enhanced_mode: bool = True
     session_id: Optional[str] = None
 
@@ -368,143 +368,39 @@ async def root():
 @app.post("/query/")
 async def process_query(request: QueryRequest):
     """Main query processing endpoint"""
-    start_time = time.time()
-    SYSTEM_STATUS["total_queries"] += 1
-    
     try:
-        logger.info(f"Processing query: '{request.input_text[:50]}...' from session {request.session_id}")
-        
         # Validate input
-        is_valid, validation_msg = validate_input(request.input_text)
-        if not is_valid:
-            logger.warning(f"Invalid input: {validation_msg}")
+        input_text = request.input_text.strip()
+        if not input_text:
             return JSONResponse(
                 status_code=400,
-                content={
-                    "reply": "I'm sorry, I cannot assist with that topic. For more details, please contact the 104/102 helpline numbers.",
-                    "error": validation_msg,
-                    "status": "error"
-                }
+                content={"reply": "Please provide a valid query."}
             )
-        
-        # Get or generate session ID
-        session_id = request.session_id or generate_session_id()
-        logger.info(f"Using session ID: {session_id}")
-        
-        # Check rate limit
-        rate_ok, rate_msg = check_rate_limit(session_id)
-        if not rate_ok:
-            logger.warning(f"Rate limit exceeded for session {session_id}")
-            return JSONResponse(
-                status_code=429,
-                content={
-                    "reply": "Please wait a moment before sending another message.",
-                    "error": rate_msg,
-                    "status": "rate_limited"
-                }
-            )
-        
-        # Check system status
+
+        # Check RAG system initialization
         if not CURRENT_RAG_CHAIN:
-            logger.error("RAG chain not initialized")
             return JSONResponse(
                 status_code=503,
-                content={
-                    "reply": "System is not ready. Please check if documents are loaded and Ollama is running.",
-                    "error": "RAG system not initialized",
-                    "status": "service_unavailable"
-                }
+                content={"reply": "System is not ready. Please check if documents are loaded and Ollama is running."}
             )
-        
-        # Check Ollama connection
-        try:
-            is_connected, connection_msg = check_ollama_connection(OLLAMA_BASE_URL, OLLAMA_MODEL)
-            if not is_connected:
-                logger.error(f"Ollama connection failed: {connection_msg}")
-                return JSONResponse(
-                    status_code=503,
-                    content={
-                        "reply": f"AI service unavailable: {connection_msg}. Please try again later.",
-                        "error": connection_msg,
-                        "status": "ollama_unavailable"
-                    }
-                )
-        except Exception as e:
-            logger.error(f"Ollama connection check failed: {e}")
-            return JSONResponse(
-                status_code=503,
-                content={
-                    "reply": "Unable to verify AI service status. Please try again later.",
-                    "error": str(e),
-                    "status": "connection_error"
-                }
-            )
-        
-        # Process query
-        logger.info("Sending query to RAG chain...")
-        try:
-            result = process_scheme_query_with_retry(CURRENT_RAG_CHAIN, request.input_text)
-        except Exception as e:
-            logger.error(f"RAG processing error: {e}")
-            SYSTEM_STATUS["failed_queries"] += 1
-            SYSTEM_STATUS["last_error"] = str(e)
-            return JSONResponse(
-                status_code=500,
-                content={
-                    "reply": "I encountered an error processing your request. Please try again.",
-                    "error": str(e),
-                    "status": "processing_error"
-                }
-            )
-        
-        # Extract response
-        if isinstance(result, tuple) and len(result) > 0:
-            assistant_reply = result[0]
-        else:
-            assistant_reply = str(result)
-        
+
+        # Process the query using the RAG system
+        result = process_scheme_query_with_retry(CURRENT_RAG_CHAIN, input_text)
+        assistant_reply = result[0] if isinstance(result, tuple) else result or ""
+
         # Validate response
-        if not assistant_reply or len(assistant_reply.strip()) < 5:
-            assistant_reply = "I couldn't find relevant information in the documents. Please ask questions related to the uploaded content or try rephrasing your query."
-        
-        # Clean up response
-        assistant_reply = assistant_reply.strip()
-        
-        # Add to chat history
-        add_to_chat_history(session_id, request.input_text, assistant_reply)
-        
-        # Update success metrics
-        SYSTEM_STATUS["successful_queries"] += 1
-        processing_time = time.time() - start_time
-        
-        logger.info(f"Query processed successfully in {processing_time:.2f}s")
-        
-        return {
-            "reply": assistant_reply,
-            "session_id": session_id,
-            "model_used": OLLAMA_MODEL,
-            "timestamp": time.time(),
-            "processing_time": round(processing_time, 3),
-            "language": detect_language(request.input_text) if 'detect_language' in globals() else 'unknown',
-            "status": "success"
-        }
-        
+        if len(assistant_reply.strip()) < 10:
+            return JSONResponse(
+                status_code=400,
+                content={"reply": "No relevant information found in the uploaded documents. Please ask a question that is covered in your PDF/TXT files."}
+            )
+
+        return {"reply": assistant_reply}
     except Exception as e:
-        SYSTEM_STATUS["failed_queries"] += 1
-        SYSTEM_STATUS["last_error"] = str(e)
-        processing_time = time.time() - start_time
-        
-        logger.error(f"Query processing error after {processing_time:.2f}s: {e}")
-        logger.error(traceback.format_exc())
-        
+        logging.error(f"Query processing error: {e}")
         return JSONResponse(
             status_code=500,
-            content={
-                "reply": "I encountered an error processing your request. Please try again or contact support.",
-                "error": str(e),
-                "processing_time": round(processing_time, 3),
-                "status": "error"
-            }
+            content={"reply": "An error occurred while processing your query. Please try again later."}
         )
 
 @app.get("/health/")

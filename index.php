@@ -518,9 +518,9 @@
                 <div class="suggested-questions">
                     <p id="suggestionsLabel">Quick suggestions:</p>
                     <div class="suggestion-buttons" id="suggestionButtons">
-                        <button class="suggestion-btn" data-en="What schemes are available?" data-hi="कौन सी योजनाएं उपलब्ध हैं?" data-mr="कोणत्या योजना उपलब्ध आहेत?">Schemes</button>
-                        <button class="suggestion-btn" data-en="How to apply?" data-hi="आवेदन कैसे करें?" data-mr="अर्ज कसा करायचा?">Apply</button>
-                        <button class="suggestion-btn" data-en="Eligibility criteria?" data-hi="पात्रता मापदंड?" data-mr="पात्रता निकष?">Eligibility</button>
+                        <button class="suggestion-btn">What is the role of SWSM in Jal Jeevan Mission?</button>
+                        <button class="suggestion-btn">How does GSDA keep drinking water sources sustainable?</button>
+                        <button class="suggestion-btn">What are the features of Maha Jal Samadhan system?</button>
                     </div>
                     <div class="quick-actions">
                         <button class="quick-action-btn" id="clearChat">Clear Chat</button>
@@ -836,7 +836,7 @@
 
                 const requestBody = {
                     input_text: message,
-                    model: 'hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0',
+                    model: 'gemma3:270m',
                     enhanced_mode: true,
                     session_id: CONFIG.SESSION_ID
                 };
