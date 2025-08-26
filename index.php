@@ -121,7 +121,7 @@
 
         .chat-header {
             background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-            padding: 20px;
+            padding: 15px 20px;
             color: white;
             display: flex;
             align-items: center;
@@ -132,6 +132,7 @@
         .chat-header-info {
             display: flex;
             align-items: center;
+            flex: 1;
         }
 
         .chat-avatar {
@@ -154,6 +155,35 @@
         .chat-header-text p {
             font-size: 12px;
             opacity: 0.9;
+        }
+
+        /* Language Dropdown */
+        .language-selector {
+            display: flex;
+            align-items: center;
+            margin-right: 10px;
+        }
+
+        .language-dropdown {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .language-dropdown:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .language-dropdown option {
+            background: #ff6b35;
+            color: white;
+            padding: 5px;
         }
 
         .close-chat {
@@ -419,21 +449,6 @@
             background: #27ae60;
         }
 
-        .debug-info {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            font-family: monospace;
-            font-size: 12px;
-            max-width: 300px;
-            display: none;
-            z-index: 10001;
-        }
-
         /* Responsive Design */
         @media (max-width: 480px) {
             .chat-window {
@@ -452,14 +467,6 @@
         <p>Your FastAPI chatbot is ready! Click the orange chat bubble to start a conversation.</p>
         <br>
         <p style="font-size: 1em; opacity: 0.7;">This demo page shows how the chatbot widget integrates with your website.</p>
-    </div>
-
-    <!-- Debug Info -->
-    <div class="debug-info" id="debugInfo">
-        <div>Connection: <span id="debugConnection">Unknown</span></div>
-        <div>Session: <span id="debugSession">None</span></div>
-        <div>API URL: <span id="debugApi">Loading...</span></div>
-        <div>Last Error: <span id="debugError">None</span></div>
     </div>
 
     <!-- Chat Widget -->
@@ -484,6 +491,15 @@
                         <p id="connectionStatus">Connecting...</p>
                     </div>
                 </div>
+                
+                <div class="language-selector">
+                    <select class="language-dropdown" id="languageSelect">
+                        <option value="en">English</option>
+                        <option value="hi">हिंदी</option>
+                        <option value="mr">मराठी</option>
+                    </select>
+                </div>
+                
                 <button class="close-chat" id="closeChat">&times;</button>
                 <div class="connection-status" id="connectionIndicator"></div>
             </div>
@@ -500,16 +516,15 @@
 
             <div class="chat-input-area">
                 <div class="suggested-questions">
-                    <p>Quick suggestions:</p>
+                    <p id="suggestionsLabel">Quick suggestions:</p>
                     <div class="suggestion-buttons" id="suggestionButtons">
-                        <button class="suggestion-btn">What schemes are available?</button>
-                        <button class="suggestion-btn">How to apply?</button>
-                        <button class="suggestion-btn">Eligibility criteria?</button>
+                        <button class="suggestion-btn" data-en="What schemes are available?" data-hi="कौन सी योजनाएं उपलब्ध हैं?" data-mr="कोणत्या योजना उपलब्ध आहेत?">Schemes</button>
+                        <button class="suggestion-btn" data-en="How to apply?" data-hi="आवेदन कैसे करें?" data-mr="अर्ज कसा करायचा?">Apply</button>
+                        <button class="suggestion-btn" data-en="Eligibility criteria?" data-hi="पात्रता मापदंड?" data-mr="पात्रता निकष?">Eligibility</button>
                     </div>
                     <div class="quick-actions">
                         <button class="quick-action-btn" id="clearChat">Clear Chat</button>
                         <button class="quick-action-btn" id="newSession">New Session</button>
-                        <button class="quick-action-btn" id="toggleDebug">Debug</button>
                     </div>
                 </div>
 
@@ -531,14 +546,60 @@
     </div>
 
     <script>
+        // Language configurations
+        const LANGUAGE_CONFIG = {
+            en: {
+                name: 'English',
+                welcomeMessage: "Hello! I'm your AI assistant. I can help you with information from uploaded documents. How can I help you today?",
+                placeholder: "Ask your query here",
+                suggestionsLabel: "Quick suggestions:",
+                connectionOnline: "Online • Ready to help",
+                connectionOffline: "Offline • Reconnecting...",
+                clearChat: "Clear Chat",
+                newSession: "New Session",
+                systemNotReady: "System is not ready. Please check if documents are loaded and Ollama is running.",
+                errorProcessing: "I encountered an error processing your request. Please try again.",
+                waitMessage: "Please wait a moment before sending another message.",
+                noResponse: "I couldn't find relevant information in the documents. Please ask questions related to the uploaded content or try rephrasing your query."
+            },
+            hi: {
+                name: 'हिंदी',
+                welcomeMessage: "नमस्ते! मैं आपका AI सहायक हूं। मैं अपलोड किए गए दस्तावेजों की जानकारी से आपकी मदद कर सकता हूं। मैं आपकी कैसे सहायता कर सकता हूं?",
+                placeholder: "यहां अपना प्रश्न पूछें",
+                suggestionsLabel: "त्वरित सुझाव:",
+                connectionOnline: "ऑनलाइन • मदद के लिए तैयार",
+                connectionOffline: "ऑफलाइन • पुनः कनेक्ट हो रहा है...",
+                clearChat: "चैट साफ़ करें",
+                newSession: "नया सत्र",
+                systemNotReady: "सिस्टम तैयार नहीं है। कृपया जांच लें कि दस्तावेज़ लोड हैं और Ollama चल रहा है।",
+                errorProcessing: "आपके अनुरोध को प्रसंस्करण करने में एक त्रुटि आई। कृपया पुनः प्रयास करें।",
+                waitMessage: "कृपया अगला संदेश भेजने से पहले थोड़ा इंतज़ार करें।",
+                noResponse: "मुझे दस्तावेजों में प्रासंगिक जानकारी नहीं मिली। कृपया अपलोड की गई सामग्री से संबंधित प्रश्न पूछें या अपने प्रश्न को दूसरे तरीके से पूछने का प्रयास करें।"
+            },
+            mr: {
+                name: 'मराठी',
+                welcomeMessage: "नमस्कार! मी तुमचा AI सहाय्यक आहे। मी अपलोड केलेल्या दस्तावेजांमधील माहितीसह तुम्हाला मदत करू शकतो. मी तुमची कशी मदत करू शकतो?",
+                placeholder: "इथे तुमचा प्रश्न विचारा",
+                suggestionsLabel: "त्वरित सूचना:",
+                connectionOnline: "ऑनलाइन • मदतीसाठी तयार",
+                connectionOffline: "ऑफलाइन • पुन्हा कनेक्ट होत आहे...",
+                clearChat: "चॅट साफ करा",
+                newSession: "नवीन सत्र",
+                systemNotReady: "सिस्टीम तयार नाही. कृपया तपासून पहा की दस्तावेज लोड झाले आहेत आणि Ollama चालू आहे.",
+                errorProcessing: "तुमची विनंती प्रक्रिया करतांना एक त्रुटी आली. कृपया पुन्हा प्रयत्न करा.",
+                waitMessage: "कृपया दुसरा संदेश पाठवण्यापूर्वी थोडा वेळ थांबा.",
+                noResponse: "मला दस्तावेजांमध्ये संबंधित माहिती आढळली नाही. कृपया अपलोड केलेल्या सामग्रीशी संबंधित प्रश्न विचारा किंवा तुमचा प्रश्न वेगळ्या प्रकारे विचारण्याचा प्रयत्न करा."
+            }
+        };
+
         // Configuration
         const CONFIG = {
             API_BASE_URL: 'http://localhost:8000',
             SESSION_ID: generateSessionId(),
-            MAX_RETRIES: 3,
-            RETRY_DELAY: 2000,
+            MAX_RETRIES: 2,
+            RETRY_DELAY: 1000,
             CONNECTION_CHECK_INTERVAL: 30000,
-            DEBUG: false
+            CURRENT_LANGUAGE: 'en'
         };
 
         // DOM Elements
@@ -554,15 +615,11 @@
             notificationBadge: document.getElementById('notificationBadge'),
             clearChatBtn: document.getElementById('clearChat'),
             newSessionBtn: document.getElementById('newSession'),
-            toggleDebugBtn: document.getElementById('toggleDebug'),
             connectionStatus: document.getElementById('connectionStatus'),
             connectionIndicator: document.getElementById('connectionIndicator'),
             suggestionButtons: document.getElementById('suggestionButtons'),
-            debugInfo: document.getElementById('debugInfo'),
-            debugConnection: document.getElementById('debugConnection'),
-            debugSession: document.getElementById('debugSession'),
-            debugApi: document.getElementById('debugApi'),
-            debugError: document.getElementById('debugError')
+            suggestionsLabel: document.getElementById('suggestionsLabel'),
+            languageSelect: document.getElementById('languageSelect')
         };
 
         // State
@@ -575,12 +632,7 @@
 
         // Utility Functions
         function generateSessionId() {
-            const adjectives = ["sharp", "sleepy", "fluffy", "dazzling", "crazy", "bold", "happy", "silly"];
-            const animals = ["lion", "swan", "tiger", "elephant", "zebra", "giraffe", "panda", "koala"];
-            const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-            const randomAnimal = animals[Math.floor(Math.random() * animals.length)];
-            const randomNumber = Math.floor(Math.random() * 1000);
-            return `${randomAdjective}_${randomAnimal}_${randomNumber}_${Date.now()}`;
+            return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         }
 
         function getCurrentTime() {
@@ -597,33 +649,78 @@
             return div.innerHTML;
         }
 
-        function updateDebugInfo() {
-            if (!CONFIG.DEBUG) return;
-            
-            elements.debugConnection.textContent = isConnected ? 'Connected' : 'Disconnected';
-            elements.debugSession.textContent = CONFIG.SESSION_ID.substring(0, 20) + '...';
-            elements.debugApi.textContent = CONFIG.API_BASE_URL;
-        }
-
-        function logError(error, context = '') {
-            console.error(`[ChatBot Error${context ? ' - ' + context : ''}]:`, error);
-            if (CONFIG.DEBUG) {
-                elements.debugError.textContent = `${context}: ${error.message || error}`;
-            }
-        }
-
         function updateConnectionStatus(connected) {
             isConnected = connected;
             elements.connectionIndicator.className = `connection-status ${connected ? 'connected' : ''}`;
-            elements.connectionStatus.textContent = connected ? 'Online • Ready to help' : 'Offline • Reconnecting...';
+            
+            const langConfig = LANGUAGE_CONFIG[CONFIG.CURRENT_LANGUAGE];
+            elements.connectionStatus.textContent = connected ? langConfig.connectionOnline : langConfig.connectionOffline;
             
             updateSendButtonState();
-            updateDebugInfo();
         }
 
         function updateSendButtonState() {
             const hasText = elements.messageInput.value.trim().length > 0;
             elements.sendBtn.disabled = !isConnected || isSending || !hasText;
+        }
+
+        // Language Functions
+        function updateLanguage(langCode) {
+            CONFIG.CURRENT_LANGUAGE = langCode;
+            const langConfig = LANGUAGE_CONFIG[langCode];
+            
+            // Update UI elements
+            elements.messageInput.placeholder = langConfig.placeholder;
+            elements.suggestionsLabel.textContent = langConfig.suggestionsLabel;
+            elements.clearChatBtn.textContent = langConfig.clearChat;
+            elements.newSessionBtn.textContent = langConfig.newSession;
+            
+            // Update connection status
+            updateConnectionStatus(isConnected);
+            
+            // Update suggestion buttons
+            updateSuggestionButtons();
+            
+            // Add language change message only if chat is open and has messages
+            if (isWindowOpen && elements.chatMessages.querySelectorAll('.message').length > 0) {
+                addLanguageChangeMessage(langConfig.name);
+            }
+            
+            // Save language preference
+            try {
+                localStorage.setItem('chatbot_language', langCode);
+            } catch (e) {
+                console.warn('Could not save language preference:', e);
+            }
+        }
+
+        function updateSuggestionButtons() {
+            const langCode = CONFIG.CURRENT_LANGUAGE;
+            const buttons = elements.suggestionButtons.querySelectorAll('.suggestion-btn');
+            
+            buttons.forEach(btn => {
+                const text = btn.getAttribute(`data-${langCode}`);
+                if (text) {
+                    btn.textContent = text;
+                }
+            });
+        }
+
+        function addLanguageChangeMessage(languageName) {
+            const message = `Language switched to ${languageName}`;
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'status-indicator info';
+            messageDiv.textContent = message;
+            
+            elements.chatMessages.insertBefore(messageDiv, elements.typingIndicator);
+            scrollToBottom();
+            
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.remove();
+                }
+            }, 3000);
         }
 
         // UI Functions
@@ -648,11 +745,12 @@
         }
 
         function addWelcomeMessage() {
+            const langConfig = LANGUAGE_CONFIG[CONFIG.CURRENT_LANGUAGE];
             const welcomeDiv = document.createElement('div');
             welcomeDiv.className = 'message bot';
             welcomeDiv.innerHTML = `
                 <div class="message-content">
-                    Hello! I'm your AI assistant. I can help you with information from uploaded documents. How can I help you today?
+                    ${langConfig.welcomeMessage}
                     <div class="message-time">${getCurrentTime()}</div>
                 </div>
             `;
@@ -675,7 +773,6 @@
                     </div>
                 `;
                 
-                // Insert before typing indicator
                 elements.chatMessages.insertBefore(messageDiv, elements.typingIndicator);
                 scrollToBottom();
                 
@@ -685,7 +782,7 @@
                     elements.notificationBadge.style.display = 'flex';
                 }
             } catch (error) {
-                logError(error, 'addMessage');
+                console.error('Error adding message:', error);
             }
         }
 
@@ -721,23 +818,8 @@
                     }
                 }, 5000);
             } catch (error) {
-                logError(error, 'showStatus');
+                console.error('Error showing status:', error);
             }
-        }
-
-        function formatBotResponse(text) {
-            if (!text) return 'No response received.';
-            
-            // Convert markdown-style formatting to HTML
-            let formatted = text
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/## (.*?)(\n|$)/g, '<h4 style="margin: 10px 0 5px 0; color: #333;">$1</h4>')
-                .replace(/### (.*?)(\n|$)/g, '<h5 style="margin: 8px 0 4px 0; color: #555;">$1</h5>')
-                .replace(/\n\n/g, '<br><br>')
-                .replace(/\n/g, '<br>');
-            
-            return formatted;
         }
 
         // API Functions
@@ -747,13 +829,10 @@
             isSending = true;
             
             try {
-                // Add user message to chat
                 addMessage(message, true);
                 elements.messageInput.value = '';
                 showTyping();
                 updateSendButtonState();
-
-                console.log('Sending message:', message);
 
                 const requestBody = {
                     input_text: message,
@@ -762,14 +841,19 @@
                     session_id: CONFIG.SESSION_ID
                 };
 
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
+
                 const response = await fetch(`${CONFIG.API_BASE_URL}/query/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(requestBody)
+                    body: JSON.stringify(requestBody),
+                    signal: controller.signal
                 });
 
+                clearTimeout(timeoutId);
                 hideTyping();
 
                 if (!response.ok) {
@@ -784,41 +868,33 @@
                 }
 
                 const data = await response.json();
-                console.log('Response data:', data);
-                
                 updateConnectionStatus(true);
                 
                 if (data.reply) {
-                    const formattedReply = formatBotResponse(data.reply);
-                    addMessage(formattedReply, false);
+                    addMessage(data.reply, false);
                 } else {
-                    addMessage("I apologize, but I didn't receive a proper response. Please try again.", false);
+                    const langConfig = LANGUAGE_CONFIG[CONFIG.CURRENT_LANGUAGE];
+                    addMessage(langConfig.noResponse, false);
                 }
                 
             } catch (error) {
                 hideTyping();
-                logError(error, 'sendMessage');
+                console.error('Send message error:', error);
                 
-                if (retries < CONFIG.MAX_RETRIES && (
-                    error.message.includes('fetch') || 
-                    error.message.includes('network') ||
-                    error.message.includes('connection') ||
-                    error.message.includes('timeout') ||
-                    error.message.includes('Server error: 503') ||
-                    error.message.includes('Server error: 502')
-                )) {
-                    showStatus(`Connection issue. Retrying... (${retries + 1}/${CONFIG.MAX_RETRIES})`, 'info');
+                const langConfig = LANGUAGE_CONFIG[CONFIG.CURRENT_LANGUAGE];
+                
+                if (retries < CONFIG.MAX_RETRIES && (error.name === 'AbortError' || error.message.includes('fetch'))) {
+                    showStatus(`Retrying... (${retries + 1}/${CONFIG.MAX_RETRIES})`, 'info');
                     setTimeout(() => {
                         sendMessage(message, retries + 1);
                     }, CONFIG.RETRY_DELAY);
-                    return; // Don't reset UI state yet
+                    return;
                 } else {
                     updateConnectionStatus(false);
                     showStatus(error.message, 'error');
-                    addMessage("I'm having trouble connecting right now. Please check if the backend server is running and try again.", false);
+                    addMessage(langConfig.errorProcessing, false);
                 }
             } finally {
-                // Re-enable UI
                 isSending = false;
                 updateSendButtonState();
                 elements.messageInput.focus();
@@ -827,16 +903,13 @@
 
         async function clearChat() {
             try {
-                // Clear all messages except typing indicator
                 const messages = elements.chatMessages.querySelectorAll('.message, .status-indicator');
                 messages.forEach(msg => msg.remove());
                 
-                // Add new welcome message
                 addWelcomeMessage();
-                
                 showStatus('Chat cleared successfully', 'success');
             } catch (error) {
-                logError(error, 'clearChat');
+                console.error('Clear chat error:', error);
                 showStatus('Failed to clear chat', 'error');
             }
         }
@@ -846,44 +919,33 @@
                 CONFIG.SESSION_ID = generateSessionId();
                 console.log('New session started:', CONFIG.SESSION_ID);
                 
-                // Clear all messages except typing indicator
                 const messages = elements.chatMessages.querySelectorAll('.message, .status-indicator');
                 messages.forEach(msg => msg.remove());
                 
-                // Add new welcome message
                 addWelcomeMessage();
-                
                 showStatus('New session started', 'success');
-                updateDebugInfo();
             } catch (error) {
-                logError(error, 'startNewSession');
+                console.error('New session error:', error);
                 showStatus('Failed to start new session', 'error');
             }
         }
 
         async function checkConnection() {
             try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+
                 const response = await fetch(`${CONFIG.API_BASE_URL}/health/`, {
-                    method: 'GET'
+                    method: 'GET',
+                    signal: controller.signal
                 });
+                
+                clearTimeout(timeoutId);
                 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('Health check response:', data);
-                    
                     const connected = data.ollama_status?.connected && data.rag_status?.initialized;
                     updateConnectionStatus(connected);
-                    
-                    if (!connected) {
-                        let message = 'System not ready';
-                        if (!data.ollama_status?.connected) {
-                            message = 'Ollama not connected';
-                        } else if (!data.rag_status?.initialized) {
-                            message = 'RAG system not initialized';
-                        }
-                        showStatus(message, 'error');
-                    }
-                    
                     return connected;
                 } else {
                     updateConnectionStatus(false);
@@ -894,13 +956,6 @@
                 updateConnectionStatus(false);
                 return false;
             }
-        }
-
-        function toggleDebug() {
-            CONFIG.DEBUG = !CONFIG.DEBUG;
-            elements.debugInfo.style.display = CONFIG.DEBUG ? 'block' : 'none';
-            elements.toggleDebugBtn.textContent = CONFIG.DEBUG ? 'Hide Debug' : 'Debug';
-            updateDebugInfo();
         }
 
         // Event Listeners
@@ -916,21 +971,21 @@
         });
 
         elements.messageInput.addEventListener('input', updateSendButtonState);
-        elements.messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                elements.chatForm.dispatchEvent(new Event('submit'));
-            }
-        });
-
         elements.clearChatBtn.addEventListener('click', clearChat);
         elements.newSessionBtn.addEventListener('click', startNewSession);
-        elements.toggleDebugBtn.addEventListener('click', toggleDebug);
+
+        // Language selector event listener - FIXED
+        elements.languageSelect.addEventListener('change', (e) => {
+            const selectedLang = e.target.value;
+            console.log('Language changed to:', selectedLang);
+            updateLanguage(selectedLang);
+        });
 
         // Suggestion buttons
         elements.suggestionButtons.addEventListener('click', async (e) => {
             if (e.target.classList.contains('suggestion-btn')) {
-                const suggestion = e.target.textContent;
+                const langCode = CONFIG.CURRENT_LANGUAGE;
+                const suggestion = e.target.getAttribute(`data-${langCode}`) || e.target.textContent;
                 elements.messageInput.value = suggestion;
                 updateSendButtonState();
                 if (!isSending && isConnected) {
@@ -942,7 +997,20 @@
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             console.log('ChatBot UI initialized');
-            updateDebugInfo();
+            
+            // Load saved language preference
+            try {
+                const savedLanguage = localStorage.getItem('chatbot_language');
+                if (savedLanguage && LANGUAGE_CONFIG[savedLanguage]) {
+                    CONFIG.CURRENT_LANGUAGE = savedLanguage;
+                    elements.languageSelect.value = savedLanguage;
+                }
+            } catch (e) {
+                console.warn('Could not load language preference:', e);
+            }
+            
+            // Apply current language
+            updateLanguage(CONFIG.CURRENT_LANGUAGE);
             
             // Set up periodic connection checks
             connectionCheckInterval = setInterval(checkConnection, CONFIG.CONNECTION_CHECK_INTERVAL);
