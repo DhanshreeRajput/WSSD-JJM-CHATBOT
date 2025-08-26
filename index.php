@@ -86,9 +86,9 @@
         }
 
         @keyframes pulse {
-            0% { box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4); }
-            50% { box-shadow: 0 4px 20px rgba(255, 107, 53, 0.8); }
-            100% { box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4); }
+            0% { box-shadow: 0 4px 20px rgba(117, 160, 253, 0.4); }
+            50% { box-shadow: 0 4px 20px rgba(132, 134, 255, 0.8); }
+            100% { box-shadow: 0 4px 20px rgba(124, 153, 247, 0.4); }
         }
 
         /* Chat Window */
