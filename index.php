@@ -45,8 +45,8 @@
         .chat-bubble {
             position: relative;
             background: linear-gradient(135deg, #3b5fffff 0%, #7d99f8ff 100%);
-            width: 84px;
-            height: 84px;
+            width: 72px;
+            height: 74px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -101,7 +101,7 @@
         /* Chat Window */
         .chat-window {
             position: fixed;
-            bottom: 90px;
+            bottom: 103px;
             right: 20px;
             width: 380px;
             height: 500px;
