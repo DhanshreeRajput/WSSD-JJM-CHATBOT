@@ -296,7 +296,7 @@ def greeting_reply(language: str, key: str) -> str:
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     print("=" * 60)
-    print("🚀 STARTING SAMNEX AI CHATBOT BACKEND (MULTILINGUAL)")
+    print("🚀 STARTING WSSD AI CHATBOT BACKEND (MULTILINGUAL)")
     print("=" * 60)
     
     # Print configuration
@@ -352,7 +352,7 @@ async def lifespan(app: FastAPI):
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="SAMNEX AI ChatBot Backend (Multilingual)", 
+    title="WSSD AI ChatBot Backend (Multilingual)", 
     description="Local Ollama-powered RAG chatbot with multilingual support (English, Hindi, Marathi)",
     version="1.1.0",
     lifespan=lifespan
@@ -392,7 +392,7 @@ async def root():
         uptime = time.time() - SYSTEM_STATUS["startup_time"]
         
         return {
-            "message": "SAMNEX AI ChatBot Backend is running (Multilingual)",
+            "message": "WSSD AI ChatBot Backend is running (Multilingual)",
             "mode": "local_ollama_multilingual",
             "version": "1.1.0",
             "uptime_seconds": round(uptime, 2),

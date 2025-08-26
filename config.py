@@ -12,7 +12,7 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
 
 # Application Settings
-APP_NAME = os.getenv("APP_NAME", "SAMNEX AI Local")
+APP_NAME = os.getenv("APP_NAME", "WSSD AI Local")
 APP_VERSION = os.getenv("APP_VERSION", "1.0.0")
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
@@ -43,7 +43,7 @@ STRICT_KB_ONLY = os.getenv("STRICT_KB_ONLY", "true").lower() == "true"
 
 def print_config():
     print("=" * 50)
-    print("SAMNEX AI - OPTIMIZED CONFIGURATION")
+    print("WSSD AI - OPTIMIZED CONFIGURATION")
     print("=" * 50)
     print(f"Ollama URL: {OLLAMA_BASE_URL}")
     print(f"Ollama Model: {OLLAMA_MODEL}")

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChatBot UI - SAMNEX AI</title>
+    <title>ChatBot UI - WSSD</title>
     <style>
         * {
             margin: 0;
@@ -13,14 +13,14 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #fbfcfdff 0%, #f4f3f5ff 100%);
             min-height: 100vh;
             padding: 20px;
         }
 
         .demo-content {
             text-align: center;
-            color: white;
+            color: blue;
             padding: 50px 20px;
         }
 
@@ -44,7 +44,7 @@
 
         .chat-bubble {
             position: relative;
-            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            background: linear-gradient(135deg, #3b5fffff 0%, #7d99f8ff 100%);
             width: 60px;
             height: 60px;
             border-radius: 50%;
@@ -52,14 +52,14 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4);
+            box-shadow: 0 4px 20px rgba(103, 105, 245, 0.4);
             transition: all 0.3s ease;
             animation: pulse 2s infinite;
         }
 
         .chat-bubble:hover {
             transform: scale(1.1);
-            box-shadow: 0 6px 25px rgba(255, 107, 53, 0.6);
+            box-shadow: 0 6px 25px rgba(118, 120, 253, 0.6);
         }
 
         .chat-bubble svg {
@@ -120,7 +120,7 @@
         }
 
         .chat-header {
-            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            background: linear-gradient(135deg, #4964fdff 0%, #6091fcff 100%);
             padding: 15px 20px;
             color: white;
             display: flex;
@@ -181,7 +181,7 @@
         }
 
         .language-dropdown option {
-            background: #ff6b35;
+            background: #606bfdff;
             color: white;
             padding: 5px;
         }
@@ -354,11 +354,11 @@
         }
 
         .chat-input:focus {
-            border-color: #ff6b35;
+            border-color: #574bf7ff;
         }
 
         .send-btn {
-            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            background: linear-gradient(135deg, #5161f1ff 0%, #858febff 100%);
             border: none;
             width: 40px;
             height: 40px;
@@ -463,10 +463,10 @@
 <body>
     <!-- Demo Content -->
     <div class="demo-content">
-        <h1>SAMNEX AI Demo Page</h1>
-        <p>Your FastAPI chatbot is ready! Click the orange chat bubble to start a conversation.</p>
+        <h1>WSSD AI Demo Page</h1>
+        <!--<p>Your FastAPI chatbot is ready! Click the orange chat bubble to start a conversation.</p>
         <br>
-        <p style="font-size: 1em; opacity: 0.7;">This demo page shows how the chatbot widget integrates with your website.</p>
+        <p style="font-size: 1em; opacity: 0.7;">This demo page shows how the chatbot widget integrates with your website.</p>-->
     </div>
 
     <!-- Chat Widget -->
@@ -487,7 +487,7 @@
                         </svg>
                     </div>
                     <div class="chat-header-text">
-                        <h3>SAMNEX Assistant</h3>
+                        <h3>WSSD AI Assistant</h3>
                         <p id="connectionStatus">Connecting...</p>
                     </div>
                 </div>
