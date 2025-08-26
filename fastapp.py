@@ -34,7 +34,7 @@ except ImportError as e:
     print("Please ensure rag_services.py and config.py are in the same directory as this file.")
     # Set default values as fallback
     OLLAMA_BASE_URL = "http://localhost:11434"
-    OLLAMA_MODEL = "gemma3:270m"
+    OLLAMA_MODEL = "llama3.1:8b"
     UPLOAD_DIR = "uploaded_files"
     RATE_LIMIT_SECONDS = 2
     
@@ -50,7 +50,7 @@ logger = logging.getLogger(__name__)
 
 class QueryRequest(BaseModel):
     input_text: str
-    model: str = "gemma3:270m"
+    model: str = "llama3.1:8b"
     enhanced_mode: bool = True
     session_id: Optional[str] = None
     language: str = "en"  # Added language parameter

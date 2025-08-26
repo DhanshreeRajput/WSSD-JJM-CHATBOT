@@ -477,7 +477,7 @@ def query_all_schemes_optimized(rag_chain, target_language='en'):
 def get_model_options():
     """Return available Ollama models with their characteristics."""
     return {
-        "gemma3:270m": {
+        "llama3.1:8b": {
             "name": "BharatGPT 3B Indic (Recommended)", 
             "description": "Best for Indian languages including Hindi, Marathi, and English."
         },
@@ -491,8 +491,8 @@ def get_model_options():
         }
     }
 
-def check_ollama_connection(base_url="http://localhost:11434", model="gemma3:270m"):
-    """Check if Ollama server is running and model is available"""
+def check_ollama_connection(base_url="http://localhost:11434", model="llama3.1:8b"):
+    """Fast connection check with timeout"""
     try:
         import requests
         response = requests.get(f"{base_url}/api/tags", timeout=3)  # Reduced timeout
