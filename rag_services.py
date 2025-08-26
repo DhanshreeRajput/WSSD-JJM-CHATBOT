@@ -68,7 +68,7 @@ def detect_language_langid(text):
     return lang, SUPPORTED_LANGUAGES.get(lang, "Unsupported")
 
 # --- Optimized RAG Chain Building ---
-def build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url="http://localhost:11434", enhanced_mode=True, model_choice="hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0"):
+def build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url="http://localhost:11434", enhanced_mode=True, model_choice="llama3.1:8b"):
     """
     Build a RAG chain from PDF and/or TXT files using Ollama with optimizations.
     """
@@ -117,15 +117,26 @@ def build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url="http://local
         retriever = TFIDFRetriever.from_documents(splits, k=min(max_chunks, len(splits)))
 
         # Streamlined template for faster processing
-        template = """You are a helpful assistant. Answer the question based on the provided context in the same language as the question.
+        template = """You are a concise Knowledge Assistant for quick government scheme queries.
 
-Keep your response concise and direct. If information is not available in the context, say so briefly.
+Your task is to give a brief, direct answer (maximum 2-3 lines) in the user's language.
+
+Guidelines:
+* Always answer in the **same language as the question**.
+* Be direct and concise - maximum 2-3 sentences.
+* Provide only the most essential information.
+* Include contact numbers (104/102) only when specifically asked about contact details.
+* No markdown formatting, no section headers, no bullet points.
+* If no relevant information exists, respond briefly:
+  - **Marathi**: "कृपया 104/102 हेल्पलाइन संपर्क साधा."  
+  - **Hindi**: "कृपया 104/102 हेल्पलाइन संपर्क करें।"  
+  - **English**: "Please contact 104/102 helpline."
 
 Context: {context}
 
 Question: {question}
 
-Answer:"""
+Brief Answer:"""
 
         custom_prompt = PromptTemplate(
             template=template,
@@ -157,7 +168,7 @@ Answer:"""
             if os.path.exists(f_path):
                 os.unlink(f_path)
 
-def build_rag_chain_with_model_choice(pdf_file, txt_file, ollama_base_url="http://localhost:11434", model_choice="hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0", enhanced_mode=True):
+def build_rag_chain_with_model_choice(pdf_file, txt_file, ollama_base_url="http://localhost:11434", model_choice="llama3.1:8b", enhanced_mode=True):
     """
     Build RAG chain with Ollama model. This is the primary RAG chain builder.
     """
@@ -236,7 +247,7 @@ def process_scheme_query_with_retry(rag_chain, user_query, max_retries=2):
 def get_model_options():
     """Return available Ollama models with their characteristics."""
     return {
-        "hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0": {
+        "llama3.1:8b": {
             "name": "BharatGPT 3B Indic (Recommended)", 
             "description": "Best for Indian languages including Hindi, Marathi, and English."
         },
@@ -250,7 +261,7 @@ def get_model_options():
         }
     }
 
-def check_ollama_connection(base_url="http://localhost:11434", model="hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0"):
+def check_ollama_connection(base_url="http://localhost:11434", model="llama3.1:8b"):
     """Fast connection check with timeout"""
     try:
         import requests

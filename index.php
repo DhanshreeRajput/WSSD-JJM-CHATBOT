@@ -836,7 +836,7 @@
 
                 const requestBody = {
                     input_text: message,
-                    model: 'hf.co/mradermacher/BharatGPT-3B-Indic-i1-GGUF:q4_0',
+                    model: 'llama3.1:8b',
                     enhanced_mode: true,
                     session_id: CONFIG.SESSION_ID
                 };
