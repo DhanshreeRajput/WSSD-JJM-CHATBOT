@@ -1,4 +1,4 @@
-# rag_services.py - Updated version with proper language enforcement
+# rag_services.py - Fixed version with improved knowledge base retrieval
 import tempfile
 import os
 import time
@@ -22,9 +22,9 @@ TTS_AVAILABLE = False
 
 # Language mappings and templates
 LANGUAGE_PROMPTS = {
-    'en': "Answer in English only. Be concise and direct.",
-    'hi': "केवल हिंदी में उत्तर दें। संक्षिप्त और स्पष्ट जवाब दें।",
-    'mr': "फक्त मराठीत उत्तर द्या। संक्षिप्त आणि स्पष्ट उत्तर द्या।"
+    'en': "Answer in English only. Use only the provided context to answer. Be concise and direct.",
+    'hi': "केवल हिंदी में उत्तर दें। प्रदान किए गए संदर्भ का उपयोग करके उत्तर दें। संक्षिप्त और स्पष्ट जवाब दें।",
+    'mr': "फक्त मराठीत उत्तर द्या। प्रदान केलेल्या संदर्भाचा वापर करून उत्तर द्या। संक्षिप्त आणि स्पष्ट उत्तर द्या।"
 }
 
 FALLBACK_RESPONSES = {
@@ -33,11 +33,11 @@ FALLBACK_RESPONSES = {
     'mr': "अधिक माहितीसाठी कृपया 104/102 हेल्पलाइन संपर्क साधा।"
 }
 
-# Refusal when nothing relevant is found in KB
+# More lenient refusal when nothing relevant is found in KB
 KB_REFUSAL = {
-    'en': "I don't have information about that in the uploaded documents.",
-    'hi': "अपलोड किए गए दस्तावेज़ों में इस बारे में जानकारी उपलब्ध नहीं है।",
-    'mr': "अपलोड केलेल्या दस्तऐवजांमध्ये याबद्दल माहिती उपलब्ध नाही."
+    'en': "Based on the available documents, I couldn't find specific information about that. Please try asking about government schemes, eligibility criteria, or application processes.",
+    'hi': "उपलब्ध दस्तावेज़ों के आधार पर, मुझे इस बारे में विशिष्ट जानकारी नहीं मिली। कृपया सरकारी योजनाओं, पात्रता मापदंड, या आवेदन प्रक्रियाओं के बारे में पूछें।",
+    'mr': "उपलब्ध दस्तावेजांच्या आधारे, मला याबद्दल विशिष्ट माहिती सापडली नाही। कृपया सरकारी योजना, पात्रता निकष, किंवा अर्ज प्रक्रियेबद्दल विचारा।"
 }
 
 # For language detection of the query
@@ -91,6 +91,44 @@ def detect_language_langid(text):
 def get_language_instruction(language_code):
     """Get language-specific instruction for the model"""
     return LANGUAGE_PROMPTS.get(language_code, LANGUAGE_PROMPTS['en'])
+
+def is_content_relevant(query, documents, threshold=0.3):
+    """
+    Check if the retrieved documents are relevant to the query.
+    Uses a more lenient approach to determine relevance.
+    """
+    if not documents:
+        return False
+        
+    # Extract key terms from query (excluding common words)
+    query_words = set(re.findall(r'\b\w{3,}\b', query.lower()))
+    
+    # Remove very common words that don't indicate relevance
+    stop_words = {
+        'what', 'how', 'when', 'where', 'who', 'which', 'why', 'can', 'will', 'would',
+        'should', 'could', 'the', 'and', 'for', 'are', 'you', 'have', 'get', 'know',
+        'tell', 'give', 'show', 'find', 'help', 'need', 'want', 'about', 'information',
+        'details', 'please', 'करें', 'है', 'के', 'में', 'से', 'को', 'का', 'की', 'पर',
+        'आहे', 'च्या', 'ला', 'ने', 'त', 'या', 'ची', 'कर', 'आण', 'मध'
+    }
+    
+    query_words -= stop_words
+    
+    if not query_words:
+        return True  # If no meaningful words left, assume relevant
+    
+    # Check relevance across all documents
+    total_matches = 0
+    total_words = len(query_words)
+    
+    for doc in documents:
+        doc_text = (getattr(doc, 'page_content', '') or '').lower()
+        matches = sum(1 for word in query_words if word in doc_text)
+        total_matches += matches
+    
+    # More lenient threshold - if any key terms found, consider relevant
+    relevance_score = total_matches / (total_words * len(documents)) if total_words > 0 else 0
+    return relevance_score > threshold or total_matches > 0
 
 def post_process_response(response_text, target_language='en'):
     """Final post-processing to remove any instruction artifacts and ensure language consistency"""
@@ -220,7 +258,7 @@ def build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url="http://local
         if txt_file:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmp_txt:
                 tmp_txt.write(txt_file.getvalue())
-                txt_path = tmp_txt.name
+                txt_path = tmp_tmp.name
                 temp_files_to_clean.append(txt_path)
 
         all_docs = []
@@ -232,14 +270,14 @@ def build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url="http://local
         if not all_docs:
             raise ValueError("No valid documents loaded or documents are empty.")
 
-        # Adjust parameters for local model - smaller chunks for better performance
-        chunk_size = 300 if enhanced_mode else 400
-        max_chunks = 3 if enhanced_mode else 5
+        # Improved chunking for better retrieval
+        chunk_size = 500 if enhanced_mode else 600
+        max_chunks = 8 if enhanced_mode else 6
 
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
-            chunk_overlap=max(60, int(chunk_size * 0.2)),
-            separators=["\n\n", "\n", ". ", "! ", "? ", ", ", " ", ""],
+            chunk_overlap=max(80, int(chunk_size * 0.15)),
+            separators=["\n\n", "\n", ". ", "! ", "? ", "। ", ", ", " ", ""],
             length_function=len
         )
         splits = splitter.split_documents(all_docs)
@@ -247,45 +285,43 @@ def build_rag_chain_from_files(pdf_file, txt_file, ollama_base_url="http://local
         if not splits:
             raise ValueError("Document splitting resulted in no chunks. Check document content and splitter settings.")
             
+        # Use more chunks for better retrieval
         retriever = TFIDFRetriever.from_documents(splits, k=min(max_chunks, len(splits)))
 
-        # Language-aware template with strict grounding when enabled
+        # Improved template with better context handling
         language_instruction = get_language_instruction(target_language)
-        grounding_rule = (
-            " Only use the information strictly from Context. "
-            "If the Context does not contain the answer, respond with 'NO_CONTEXT_ANSWER'."
-            if STRICT_KB_ONLY else ""
-        )
         
-        template = f"""{language_instruction}{grounding_rule}
+        template = f"""{language_instruction}
+
+Use the following context to answer the question. If the context contains relevant information, provide a helpful answer. If no relevant information is found, say that the information is not available in the documents.
 
 Context: {{context}}
 
 Question: {{question}}
 
-Answer:"""
+Helpful Answer:"""
 
         custom_prompt = PromptTemplate(
             template=template,
             input_variables=["context", "question"]
         )
         
-        # Initialize Ollama LLM with strict parameters
+        # Initialize Ollama LLM with improved parameters
         llm = Ollama(
             base_url=ollama_base_url,
             model=model_choice,
-            temperature=0.0,  # Make it completely deterministic
-            num_predict=120,  # Sufficient for multi-language responses
-            top_k=1,  # Use only the most probable token
-            top_p=0.1,  # Very focused sampling
-            callbacks=[]  # Remove callback to avoid extra logging
+            temperature=0.1,  # Slightly higher for better responses
+            num_predict=150,  # More tokens for complete answers
+            top_k=10,  # Allow more token choices
+            top_p=0.3,  # Broader sampling for better quality
+            callbacks=[]
         )
         
         return RetrievalQA.from_chain_type(
             llm=llm,
             chain_type="stuff",
             retriever=retriever,
-            return_source_documents=False,
+            return_source_documents=True,  # Enable source documents for relevance checking
             chain_type_kwargs={"prompt": custom_prompt, "verbose": False}
         )
             
@@ -319,10 +355,10 @@ def detect_language(text):
     except Exception:
         return 'en'
 
-# --- Optimized Query Processing with Language Support ---
+# --- Improved Query Processing with Better Knowledge Base Handling ---
 def process_scheme_query_with_retry(rag_chain, user_query, max_retries=2, target_language='en'):
     """
-    Optimized query processing with timeout, faster execution, and language enforcement
+    Improved query processing with better knowledge base utilization and language enforcement
     """
     # Quick language detection
     supported_languages = {"en", "hi", "mr"}
@@ -362,51 +398,49 @@ def process_scheme_query_with_retry(rag_chain, user_query, max_retries=2, target
                 if is_comprehensive_query:
                     result_text = query_all_schemes_optimized(rag_chain, response_language)
                 else:
-                    # Optional strict KB-only relevance pre-check
-                    if STRICT_KB_ONLY and hasattr(rag_chain, 'retriever') and rag_chain.retriever:
-                        try:
+                    # Get relevant documents first to check relevance
+                    try:
+                        if hasattr(rag_chain, 'retriever') and rag_chain.retriever:
                             docs = rag_chain.retriever.get_relevant_documents(user_query)
-                        except Exception:
+                        else:
                             docs = []
-                        normalized_query_words = [
-                            w for w in re.findall(r"[\w']+", user_query.lower())
-                            if len(w) >= 4 and w not in {"what", "when", "where", "which", "whose", "whom", "about", "from", "with", "into", "that", "this", "these", "those", "have", "has", "been", "shall", "will", "should", "would", "could", "how", "many", "much"}
-                        ]
-                        overlap_hits = 0
-                        for doc in docs or []:
-                            text_lower = (getattr(doc, 'page_content', '') or '').lower()
-                            if any(word in text_lower for word in normalized_query_words):
-                                overlap_hits += 1
-                        if overlap_hits == 0:
-                            return (KB_REFUSAL.get(response_language, KB_REFUSAL['en']), "", response_language, {"text_cache": "skipped", "audio_cache": "not_generated"})
-
-                    # Process the query with language context
-                    language_aware_query = f"[{response_language.upper()}] {user_query}"
-                    result = rag_chain.invoke({"query": language_aware_query})
+                    except Exception:
+                        docs = []
                     
-                    # Extract the actual result properly
-                    if isinstance(result, dict):
-                        result_text = result.get('result', FALLBACK_RESPONSES.get(response_language, 'No results found.'))
-                    elif isinstance(result, str):
-                        result_text = result
+                    # More lenient relevance checking
+                    if docs and is_content_relevant(user_query, docs, threshold=0.1):  # Lower threshold
+                        # Process the query with language context
+                        language_aware_query = f"Answer in {response_language}: {user_query}"
+                        result = rag_chain.invoke({"query": language_aware_query})
+                        
+                        # Extract the actual result properly
+                        if isinstance(result, dict):
+                            result_text = result.get('result', '')
+                            source_docs = result.get('source_documents', [])
+                            
+                            # Check if we got source documents and a meaningful response
+                            if source_docs and len(result_text.strip()) > 10:
+                                # Good result with sources
+                                pass
+                            elif not source_docs:
+                                # No source documents, try a broader search
+                                broader_query = f"information about {user_query.split()[-1] if user_query.split() else user_query}"
+                                result = rag_chain.invoke({"query": broader_query})
+                                result_text = result.get('result', '') if isinstance(result, dict) else str(result)
+                        elif isinstance(result, str):
+                            result_text = result
+                        else:
+                            result_text = str(result)
+                        
+                        # Clean and validate the response
+                        result_text = clean_response(result_text, user_query, response_language)
+                        
+                        # If we still don't have a good response, use fallback
+                        if len(result_text.strip()) < 15 or 'NO_CONTEXT_ANSWER' in result_text:
+                            result_text = KB_REFUSAL.get(response_language, KB_REFUSAL['en'])
                     else:
-                        result_text = str(result)
-                    
-                    # If the model followed the grounding rule, map the sentinel to localized refusal
-                    if STRICT_KB_ONLY and isinstance(result_text, str) and 'NO_CONTEXT_ANSWER' in result_text:
+                        # No relevant documents found, but provide helpful guidance
                         result_text = KB_REFUSAL.get(response_language, KB_REFUSAL['en'])
-
-                    # Additional cleaning for instruction artifacts
-                    result_text = post_process_response(result_text, response_language)
-                
-                # Clean the result to remove any template artifacts and ensure correct language
-                result_text = clean_response(result_text, user_query, response_language)
-                
-                # Final validation - if response seems to be in wrong language, use fallback
-                if response_language in ['hi', 'mr'] and not any(char in result_text for char in ['अ', 'आ', 'इ', 'ई', 'उ', 'ऊ', 'ए', 'ऐ', 'ओ', 'औ', 'क', 'ख', 'ग', 'घ']):
-                    result_text = FALLBACK_RESPONSES.get(response_language, result_text)
-                elif response_language == 'en' and any(char in result_text for char in ['अ', 'आ', 'इ', 'ई', 'उ', 'ऊ']):
-                    result_text = FALLBACK_RESPONSES.get(response_language, result_text)
                 
                 # Cache the result
                 cache_result(query_hash, result_text)
@@ -472,26 +506,47 @@ def extract_schemes_from_text(text_content):
 def query_all_schemes_optimized(rag_chain, target_language='en'):
     """Optimized scheme extractor using targeted queries and regex with language support."""
     try:
+        # Multiple queries to get comprehensive results
+        queries = []
         if target_language == 'hi':
-            context_query = "सभी सरकारी योजनाओं की सूची"
+            queries = [
+                "सभी सरकारी योजनाओं की सूची",
+                "योजना नाम और विवरण",
+                "उपलब्ध कार्यक्रम और अभियान"
+            ]
             response_prefix = "मुख्य योजनाएं मिलीं"
         elif target_language == 'mr':
-            context_query = "सर्व सरकारी योजनांची यादी"
+            queries = [
+                "सर्व सरकारी योजनांची यादी",
+                "योजना नावे आणि तपशील",
+                "उपलब्ध कार्यक्रम आणि अभियान"
+            ]
             response_prefix = "मुख्य योजना सापडल्या"
         else:
-            context_query = "List all government schemes mentioned in documents"
+            queries = [
+                "List all government schemes mentioned in documents",
+                "Available schemes and programs",
+                "Government initiatives and policies"
+            ]
             response_prefix = "Found main schemes"
-            
-        response = rag_chain.invoke({"query": context_query})
-        content_to_parse = response.get('result', '')
         
-        all_extracted_schemes = extract_schemes_from_text(content_to_parse)
-
-        if not all_extracted_schemes:
+        all_schemes = set()
+        
+        # Run multiple queries to get comprehensive results
+        for query in queries:
+            try:
+                response = rag_chain.invoke({"query": query})
+                content = response.get('result', '') if isinstance(response, dict) else str(response)
+                schemes = extract_schemes_from_text(content)
+                all_schemes.update(schemes)
+            except Exception:
+                continue
+        
+        if not all_schemes:
             return FALLBACK_RESPONSES.get(target_language, "No government schemes found in documents.")
 
-        # Keep it concise - max 5 schemes
-        limited_schemes = all_extracted_schemes[:5]
+        # Keep it reasonable - max 8 schemes
+        limited_schemes = sorted(list(all_schemes))[:8]
         
         if target_language == 'hi':
             response_text = f"{len(limited_schemes)} मुख्य योजनाएं मिलीं: " + ", ".join(limited_schemes)
@@ -530,17 +585,18 @@ def check_ollama_connection(base_url="http://localhost:11434", model="llama3.1:8
     """Fast connection check with timeout"""
     try:
         import requests
-        response = requests.get(f"{base_url}/api/tags", timeout=3)  # Reduced timeout
+        response = requests.get(f"{base_url}/api/tags", timeout=5)  # Increased timeout
         if response.status_code == 200:
             models = response.json().get('models', [])
             model_names = [m['name'] for m in models]
             if model in model_names:
-                return True, "Connected"
+                return True, "Connected and model available"
             else:
-                return False, f"Model not found"
+                available_models = ", ".join(model_names[:3])  # Show first 3 models
+                return False, f"Model '{model}' not found. Available: {available_models}"
         else:
             return False, f"Server error: {response.status_code}"
     except requests.exceptions.ConnectionError:
-        return False, "Connection failed"
+        return False, "Connection failed - Ollama server not running"
     except Exception as e:
         return False, f"Error: {str(e)[:50]}..."

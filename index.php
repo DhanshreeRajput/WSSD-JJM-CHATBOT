@@ -45,8 +45,8 @@
         .chat-bubble {
             position: relative;
             background: linear-gradient(135deg, #3b5fffff 0%, #7d99f8ff 100%);
-            width: 60px;
-            height: 60px;
+            width: 84px;
+            height: 84px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -66,6 +66,13 @@
             width: 28px;
             height: 28px;
             fill: white;
+        }
+
+        .chat-bubble img {
+            width: 74px;
+            height: 74px;
+            object-fit: contain;
+            display: block;
         }
 
         .notification-badge {
@@ -120,7 +127,7 @@
         }
 
         .chat-header {
-            background: linear-gradient(135deg, #4964fdff 0%, #6091fcff 100%);
+            background: linear-gradient(135deg, #e6e9f0ff 0%, #092becff 100%);
             padding: 15px 20px;
             color: white;
             display: flex;
@@ -479,9 +486,7 @@
     <!-- Chat Widget -->
     <div class="chat-widget">
         <div class="chat-bubble" id="chatBubble">
-            <svg viewBox="0 0 24 24">
-                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
-            </svg>
+            <img src="logo/main_logo.png" alt="Chat"/>
             <div class="notification-badge" id="notificationBadge" style="display: none;">0</div>
         </div>
 
