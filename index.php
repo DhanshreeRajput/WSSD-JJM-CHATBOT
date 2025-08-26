@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChatBot UI - WSSD</title>
+    <title>WSSD JJM</title>
     <style>
         * {
             margin: 0;
@@ -136,14 +136,21 @@
         }
 
         .chat-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
+            width: auto;
+            height: auto;
+            border-radius: 0;
+            background: transparent;
             display: flex;
             align-items: center;
             justify-content: center;
             margin-right: 12px;
+        }
+
+        .chat-avatar img {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            display: block;
         }
 
         .chat-header-text h3 {
@@ -482,9 +489,7 @@
             <div class="chat-header">
                 <div class="chat-header-info">
                     <div class="chat-avatar">
-                        <svg width="20" height="20" fill="white" viewBox="0 0 24 24">
-                            <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1H5C3.89 1 3 1.89 3 3V21C3 22.11 3.89 23 5 23H19C20.11 23 21 22.11 21 21V11L19 9H21ZM7 5H13V9H7V5Z"/>
-                        </svg>
+                        <img src="logo/jjm_new_logo.svg" alt="WSSD Logo">
                     </div>
                     <div class="chat-header-text">
                         <h3>WSSD AI Assistant</h3>
