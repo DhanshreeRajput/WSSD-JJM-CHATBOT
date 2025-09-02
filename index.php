@@ -1038,7 +1038,7 @@
             // Apply current language
             updateLanguage(CONFIG.CURRENT_LANGUAGE);
             
-            // Set up periodic connection checks
+            // Set up periodic connection checks.
             connectionCheckInterval = setInterval(checkConnection, CONFIG.CONNECTION_CHECK_INTERVAL);
             
             // Initial connection check
