@@ -460,20 +460,20 @@
         .pgrs-options {
             display: flex;
             flex-direction: row;
-            gap: 8px;
+            gap: 4px;
             margin-top: 10px;
         }
 
         .option-button {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border: none;
-            padding: 10px 16px;
+            padding: 7px 35px;
             border-radius: 16px;
             font-size: 12px;
             color: white;
             cursor: pointer;
             transition: all 0.2s ease;
-            border: 2px solid transparent;
+            border: 0px solid transparent;
         }
 
         .option-button:hover {
