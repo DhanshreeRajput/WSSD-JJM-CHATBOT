@@ -465,25 +465,33 @@ async def get_suggestions(language: str = "en"):
     suggestions_by_language = {
         "en": [
             "Yes",
-            "No", 
+            "No",
             "I want to register a grievance",
-            "Hello"
+            "Hello",
+            "Would you like to register a Grievance on the Maha-Jal Samadhan Public Grievance Redressal System?",
+            "Has a Grievance already been registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
+            "Would you like to check the status of the grievance which you have registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
+            "Would you like to provide feedback regarding the resolution of your grievance addressed through the Maha-Jal Samadhan Public Grievance Redressal System?"
         ],
         "mr": [
             "होय",
             "नाही",
-            "मला तक्रार नोंदवायची आहे", 
-            "नमस्कार"
+            "मला तक्रार नोंदवायची आहे",
+            "नमस्कार",
+            "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये आपण तक्रार नोंदवू इच्छिता का?",
+            "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये नोंदविण्यात आलेली तक्रार आहे का?",
+            "आपण नोंदविलेल्या तक्रारीची स्थिती तपासू इच्छिता का?",
+            "आपल्या तक्रारीच्या निराकरणाबाबत अभिप्राय द्याल का?"
         ]
     }
-    
+
     suggestions = suggestions_by_language.get(language, suggestions_by_language["en"])
-    
     return {
         "suggestions": suggestions,
         "language": language,
         "total": len(suggestions)
     }
+
 
 @app.get("/languages/")
 async def get_supported_languages():

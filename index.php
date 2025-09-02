@@ -477,16 +477,14 @@
 <body>
     <!-- Demo Content -->
     <div class="demo-content">
-        <h1>WSSD AI Demo Page</h1>
-        <!--<p>Your FastAPI chatbot is ready! Click the orange chat bubble to start a conversation.</p>
-        <br>
-        <p style="font-size: 1em; opacity: 0.7;">This demo page shows how the chatbot widget integrates with your website.</p>-->
+        <h1>Maha-Jal Samadhan PGRS</h1>
+        <p>Public Grievance Redressal System - Click the chat icon to get started</p>
     </div>
 
     <!-- Chat Widget -->
     <div class="chat-widget">
         <div class="chat-bubble" id="chatBubble">
-            <img src="logo/main_logo.png" alt="Chat"/>
+            <img src="logo/main_logo.png" alt="Chat" onerror="this.style.display='none'; this.parentNode.innerHTML='<svg viewBox=\'0 0 24 24\'><path d=\'M20,2H4A2,2 0 0,0 2,4V22L6,18H20A2,2 0 0,0 22,16V4A2,2 0 0,0 20,2M6,9H18V11H6V9M14,14H6V12H14V14M18,8H6V6H18V8Z\'/></svg>'"/>
             <div class="notification-badge" id="notificationBadge" style="display: none;">0</div>
         </div>
 
@@ -494,11 +492,11 @@
             <div class="chat-header">
                 <div class="chat-header-info">
                     <div class="chat-avatar">
-                        <img src="logo/jjm_new_logo.svg" alt="WSSD Logo">
+                        <img src="logo/jjm_new_logo.svg" alt="PGRS Logo" onerror="this.style.display='none'">
                     </div>
                     <div class="chat-header-text">
-                        <h3>WSSD AI Assistant</h3>
-                        <p id="connectionStatus">Connecting...</p>
+                        <h3>Maha-Jal Samadhan PGRS</h3>
+                        <p id="connectionStatus">Ready to help</p>
                     </div>
                 </div>
                 
@@ -510,7 +508,6 @@
                 </div>
                 
                 <button class="close-chat" id="closeChat">&times;</button>
-                <div class="connection-status" id="connectionIndicator"></div>
             </div>
 
             <div class="chat-messages" id="chatMessages">
@@ -524,90 +521,71 @@
             </div>
 
             <div class="chat-input-area">
-                <div class="suggested-questions">
-                    <p id="suggestionsLabel">Quick suggestions:</p>
-                    <div class="suggestion-buttons" id="suggestionButtons">
-                        <button class="suggestion-btn"
-                                data-en="What is the role of SWSM in Jal Jeevan Mission?"
-                                data-mr="जल जीवन मिशनमध्ये SWSM ची भूमिका काय आहे?">
-                            What is the role of SWSM in Jal Jeevan Mission?
-                        </button>
-                        <button class="suggestion-btn"
-                                data-en="How does GSDA keep drinking water sources sustainable?"
-                                data-mr="GSDA पिण्याच्या पाण्याचे स्रोत शाश्वत कसे ठेवते?">
-                            How does GSDA keep drinking water sources sustainable?
-                        </button>
-                        <button class="suggestion-btn"
-                                data-en="What are the features of Maha Jal Samadhan system?"
-                                data-mr="महा जल समाधान प्रणालीची वैशिष्ट्ये कोणती?">
-                            What are the features of Maha Jal Samadhan system?
-                        </button>
-                    </div>
-                    <div class="quick-actions">
-                        <button class="quick-action-btn" id="clearChat">Clear Chat</button>
-                        <button class="quick-action-btn" id="newSession">New Session</button>
-                    </div>
+                <div class="quick-actions">
+                    <button class="quick-action-btn" id="restartBtn">Restart</button>
+                    <button class="quick-action-btn" id="clearChatBtn">Clear Chat</button>
                 </div>
-
-                <form class="chat-input-form" id="chatForm">
-                    <input type="text" 
-                           class="chat-input" 
-                           id="messageInput" 
-                           placeholder="Ask your query here" 
-                           maxlength="500"
-                           autocomplete="off">
-                    <button type="submit" class="send-btn" id="sendBtn">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/>
-                        </svg>
-                    </button>
-                </form>
             </div>
         </div>
     </div>
 
     <script>
-        // Language configurations
-        const LANGUAGE_CONFIG = {
+        // PGRS Script Configuration
+        const PGRS_SCRIPTS = {
             en: {
-                name: 'English',
-                welcomeMessage: "Hello! I'm your AI assistant. I can help you with information from uploaded documents. How can I help you today?",
-                placeholder: "Ask your query here",
-                suggestionsLabel: "Quick suggestions:",
-                connectionOnline: "Online • Ready to help",
-                connectionOffline: "Offline • Reconnecting...",
-                clearChat: "Clear Chat",
-                newSession: "New Session",
-                systemNotReady: "System is not ready. Please check if documents are loaded and Ollama is running.",
-                errorProcessing: "I encountered an error processing your request. Please try again.",
-                waitMessage: "Please wait a moment before sending another message.",
-                noResponse: "I couldn't find relevant information in the documents. Please ask questions related to the uploaded content or try rephrasing your query."
+                welcome: "Welcome to the Maha-Jal Samadhan Public Grievance Redressal System.",
+                question1: "Would you like to register a Grievance on the Maha-Jal Samadhan Public Grievance Redressal System?",
+                question2: "Has a Grievance already been registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
+                question21: "Would you like to check the status of the grievance which you have registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
+                question22: "Would you like to provide feedback regarding the resolution of your grievance addressed through the Maha-Jal Samadhan Public Grievance Redressal System?",
+                register_methods: "You can register your Grievance on the Maha-Jal Samadhan Public Grievance Redressal System through two methods:",
+                website_method: "1. Registering a Grievance via the Maha-Jal Samadhan Website",
+                website_link: "https://mahajalsamadhan.in/log-grievance",
+                app_method: "2. Registering a Grievance via the Maha-Jal Samadhan Mobile App",
+                app_link: "https://play.google.com/store/apps/details?id=in.mahajalsamadhan.user&pli=1",
+                grievance_id_prompt: "Please enter your Grievance ID (For example: \"G-12safeg7678\")",
+                invalid_grievance_id: "The Grievance ID you have entered is incorrect or invalid. Please enter the correct Grievance ID to proceed.",
+                status_prefix: "The current status of your Grievance is as follows:",
+                rating_prompt: "With reference to the resolution of your grievance on the Maha-Jal Samadhan Public Grievance Redressal System, how would you rate the quality of service on a scale of 1 to 5, where: 1 = Unsatisfactory and 5 = Satisfactory?",
+                rating_request: "Please provide your rating between 1 and 5:",
+                invalid_input: "The information you have entered is invalid. Please try again.",
+                thank_you: "Thank you for using the Maha-Jal Samadhan Public Grievance Redressal System.",
+                yes: "YES",
+                no: "NO",
+                website_button: "Register via Website",
+                app_button: "Download Mobile App"
             },
             mr: {
-                name: 'मराठी',
-                welcomeMessage: "नमस्कार! मी तुमचा AI सहाय्यक आहे। मी अपलोड केलेल्या दस्तावेजांमधील माहितीसह तुम्हाला मदत करू शकतो. मी तुमची कशी मदत करू शकतो?",
-                placeholder: "इथे तुमचा प्रश्न विचारा",
-                suggestionsLabel: "त्वरित सूचना:",
-                connectionOnline: "ऑनलाइन • मदतीसाठी तयार",
-                connectionOffline: "ऑफलाइन • पुन्हा कनेक्ट होत आहे...",
-                clearChat: "चॅट साफ करा",
-                newSession: "नवीन सत्र",
-                systemNotReady: "सिस्टीम तयार नाही. कृपया तपासून पहा की दस्तावेज लोड झाले आहेत आणि Ollama चालू आहे.",
-                errorProcessing: "तुमची विनंती प्रक्रिया करतांना एक त्रुटी आली. कृपया पुन्हा प्रयत्न करा.",
-                waitMessage: "कृपया दुसरा संदेश पाठवण्यापूर्वी थोडा वेळ थांबा.",
-                noResponse: "मला दस्तावेजांमध्ये संबंधित माहिती आढळली नाही. कृपया अपलोड केलेल्या सामग्रीशी संबंधित प्रश्न विचारा किंवा तुमचा प्रश्न वेगळ्या प्रकारे विचारण्याचा प्रयत्न करा."
+                welcome: "नमस्कार, महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर आपले स्वागत आहे.",
+                question1: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर आपण तक्रार नोंदू इच्छिता का?",
+                question2: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर तक्रार नोंदविण्यात आलेली आहे का?",
+                question21: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर आपण केलेल्या तक्रारीची स्थिती पाहू इच्छिता का?",
+                question22: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीद्वारे सोडविण्यात आलेल्या आपल्या तक्रारीच्या निराकरणाबाबत अभिप्राय देऊ इच्छिता का?",
+                register_methods: "आपण 'महा-जल समाधान' सार्वजनिक तक्रार निवारण प्रणालीवर आपली तक्रार दोन पद्धतींनी नोंदवू शकता:",
+                website_method: "१. महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर वेबसाईटद्वारे तक्रार नोंदणी",
+                website_link: "https://mahajalsamadhan.in/log-grievance",
+                app_method: "२. महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर मोबाईल अॅपद्वारे तक्रार नोंदणी",
+                app_link: "https://play.google.com/store/apps/details?id=in.mahajalsamadhan.user&pli=1",
+                grievance_id_prompt: "कृपया आपण आपल्या तक्रारीचा \"Grievance ID\" म्हणजेच तक्रार नोंदणी क्रमांक दाखल/नमूद करा. (उदाहरणार्थ - \"G-12safeg7678\")",
+                invalid_grievance_id: "आपण आपल्या तक्रारीचा \"Grievance ID\" म्हणजेच तक्रार नोंदणी क्रमांक चुकीचा दाखल केला आहे. कृपया योग्य \"Grievance ID\" म्हणजेच तक्रार नोंदणी क्रमांक दाखल/नमूद करा",
+                status_prefix: "आपल्या तक्रारीची सद्यस्थिती पुढीलप्रमाणे आहे:",
+                rating_prompt: "महा-जल समाधान' सार्वजनिक तक्रार निवारण प्रणालीवर आपल्या तक्रारीच्या निराकरणासंदर्भात, सेवा गुणवत्तेच्या दृष्टीने आपण १ ते ५ या श्रेणीमध्ये किती गुण देऊ इच्छिता ?१ म्हणजे 'असमाधानकारक' आणि ५ म्हणजे 'समाधानकारक'.",
+                rating_request: "कृपया आपल्याद्वारे देण्यात आलेले गुण १ ते ५ मध्ये देण्यात यावे",
+                invalid_input: "आपण दिलेली माहिती अवैध आहे. कृपया पुन्हा प्रयत्न करा.",
+                thank_you: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीचा वापर केल्याबद्दल आपले धन्यवाद.",
+                yes: "होय",
+                no: "नाही",
+                website_button: "वेबसाईटवरून नोंदणी करा",
+                app_button: "मोबाईल अॅप डाउनलोड करा"
             }
         };
 
-        // Configuration
-        const CONFIG = {
-            API_BASE_URL: 'http://localhost:8000',
-            SESSION_ID: generateSessionId(),
-            MAX_RETRIES: 2,
-            RETRY_DELAY: 1000,
-            CONNECTION_CHECK_INTERVAL: 30000,
-            CURRENT_LANGUAGE: 'en'
-        };
+        // State Management
+        let currentLanguage = 'en';
+        let chatState = 'start';
+        let pendingGrievanceId = '';
+        let selectedRating = null;
+        let isWindowOpen = false;
 
         // DOM Elements
         const elements = {
@@ -615,33 +593,13 @@
             chatWindow: document.getElementById('chatWindow'),
             closeChat: document.getElementById('closeChat'),
             chatMessages: document.getElementById('chatMessages'),
-            messageInput: document.getElementById('messageInput'),
-            sendBtn: document.getElementById('sendBtn'),
-            chatForm: document.getElementById('chatForm'),
             typingIndicator: document.getElementById('typingIndicator'),
-            notificationBadge: document.getElementById('notificationBadge'),
-            clearChatBtn: document.getElementById('clearChat'),
-            newSessionBtn: document.getElementById('newSession'),
-            connectionStatus: document.getElementById('connectionStatus'),
-            connectionIndicator: document.getElementById('connectionIndicator'),
-            suggestionButtons: document.getElementById('suggestionButtons'),
-            suggestionsLabel: document.getElementById('suggestionsLabel'),
-            languageSelect: document.getElementById('languageSelect')
+            languageSelect: document.getElementById('languageSelect'),
+            restartBtn: document.getElementById('restartBtn'),
+            clearChatBtn: document.getElementById('clearChatBtn')
         };
 
-        // State
-        let isWindowOpen = false;
-        let isTyping = false;
-        let messageCount = 0;
-        let isConnected = false;
-        let isSending = false;
-        let connectionCheckInterval;
-
         // Utility Functions
-        function generateSessionId() {
-            return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        }
-
         function getCurrentTime() {
             return new Date().toLocaleTimeString('en-US', { 
                 hour: '2-digit', 
@@ -650,317 +608,335 @@
             });
         }
 
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function updateConnectionStatus(connected) {
-            isConnected = connected;
-            elements.connectionIndicator.className = `connection-status ${connected ? 'connected' : ''}`;
-            
-            const langConfig = LANGUAGE_CONFIG[CONFIG.CURRENT_LANGUAGE];
-            elements.connectionStatus.textContent = connected ? langConfig.connectionOnline : langConfig.connectionOffline;
-            
-            updateSendButtonState();
-        }
-
-        function updateSendButtonState() {
-            const hasText = elements.messageInput.value.trim().length > 0;
-            elements.sendBtn.disabled = !isConnected || isSending || !hasText;
-        }
-
-        // Language Functions
-        function updateLanguage(langCode) {
-            CONFIG.CURRENT_LANGUAGE = langCode;
-            const langConfig = LANGUAGE_CONFIG[langCode];
-            
-            // Update UI elements
-            elements.messageInput.placeholder = langConfig.placeholder;
-            elements.suggestionsLabel.textContent = langConfig.suggestionsLabel;
-            elements.clearChatBtn.textContent = langConfig.clearChat;
-            elements.newSessionBtn.textContent = langConfig.newSession;
-            
-            // Update connection status
-            updateConnectionStatus(isConnected);
-            
-            // Update suggestion buttons
-            updateSuggestionButtons();
-            
-            // Add language change message only if chat is open and has messages
-            if (isWindowOpen && elements.chatMessages.querySelectorAll('.message').length > 0) {
-                addLanguageChangeMessage(langConfig.name);
-            }
-            
-            // Save language preference
-            try {
-                localStorage.setItem('chatbot_language', langCode);
-            } catch (e) {
-                console.warn('Could not save language preference:', e);
-            }
-        }
-
-        function updateSuggestionButtons() {
-            const langCode = CONFIG.CURRENT_LANGUAGE;
-            const buttons = elements.suggestionButtons.querySelectorAll('.suggestion-btn');
-            
-            buttons.forEach(btn => {
-                const text = btn.getAttribute(`data-${langCode}`);
-                if (text) {
-                    btn.textContent = text;
-                }
-            });
-        }
-
-        function addLanguageChangeMessage(languageName) {
-            const message = `Language switched to ${languageName}`;
-            
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'status-indicator info';
-            messageDiv.textContent = message;
-            
-            elements.chatMessages.insertBefore(messageDiv, elements.typingIndicator);
-            scrollToBottom();
-            
-            setTimeout(() => {
-                if (messageDiv.parentNode) {
-                    messageDiv.remove();
-                }
-            }, 3000);
-        }
-
-        // UI Functions
-        function toggleChatWindow() {
-            isWindowOpen = !isWindowOpen;
-            elements.chatWindow.style.display = isWindowOpen ? 'flex' : 'none';
-            
-            if (isWindowOpen) {
-                elements.messageInput.focus();
-                elements.notificationBadge.style.display = 'none';
-                messageCount = 0;
-                
-                // Initialize with welcome message if no messages exist
-                const existingMessages = elements.chatMessages.querySelectorAll('.message');
-                if (existingMessages.length === 0) {
-                    addWelcomeMessage();
-                }
-                
-                // Start connection check
-                checkConnection();
-            }
-        }
-
-        function addWelcomeMessage() {
-            const langConfig = LANGUAGE_CONFIG[CONFIG.CURRENT_LANGUAGE];
-            const welcomeDiv = document.createElement('div');
-            welcomeDiv.className = 'message bot';
-            welcomeDiv.innerHTML = `
-                <div class="message-content">
-                    ${langConfig.welcomeMessage}
-                    <div class="message-time">${getCurrentTime()}</div>
-                </div>
-            `;
-            
-            elements.chatMessages.insertBefore(welcomeDiv, elements.typingIndicator);
-            scrollToBottom();
-        }
-
-        function addMessage(content, isUser = false, timestamp = null) {
-            try {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
-                
-                const time = timestamp || getCurrentTime();
-                
-                messageDiv.innerHTML = `
-                    <div class="message-content">
-                        ${isUser ? escapeHtml(content) : content}
-                        <div class="message-time">${time}</div>
-                    </div>
-                `;
-                
-                elements.chatMessages.insertBefore(messageDiv, elements.typingIndicator);
-                scrollToBottom();
-                
-                if (!isUser && !isWindowOpen) {
-                    messageCount++;
-                    elements.notificationBadge.textContent = messageCount;
-                    elements.notificationBadge.style.display = 'flex';
-                }
-            } catch (error) {
-                console.error('Error adding message:', error);
-            }
-        }
-
         function scrollToBottom() {
             setTimeout(() => {
                 elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
             }, 100);
         }
 
-        function showTyping() {
-            isTyping = true;
-            elements.typingIndicator.style.display = 'block';
+        function addMessage(content, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+            
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    ${content}
+                    <div class="message-time">${getCurrentTime()}</div>
+                </div>
+            `;
+            
+            elements.chatMessages.insertBefore(messageDiv, elements.typingIndicator);
             scrollToBottom();
         }
 
-        function hideTyping() {
-            isTyping = false;
-            elements.typingIndicator.style.display = 'none';
-        }
-
-        function showStatus(message, type = 'error') {
-            try {
-                const statusDiv = document.createElement('div');
-                statusDiv.className = `status-indicator ${type}`;
-                statusDiv.textContent = message;
-                
-                elements.chatMessages.insertBefore(statusDiv, elements.typingIndicator);
-                scrollToBottom();
-                
-                setTimeout(() => {
-                    if (statusDiv.parentNode) {
-                        statusDiv.remove();
-                    }
-                }, 5000);
-            } catch (error) {
-                console.error('Error showing status:', error);
-            }
-        }
-
-        // API Functions
-        async function sendMessage(message, retries = 0) {
-            if (!message.trim() || isSending) return;
-
-            isSending = true;
+        function addOptionsMessage(content, options) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot';
             
-            try {
-                addMessage(message, true);
-                elements.messageInput.value = '';
-                showTyping();
-                updateSendButtonState();
-
-                const requestBody = {
-                    input_text: message,
-                    session_id: CONFIG.SESSION_ID,
-                    language: CONFIG.CURRENT_LANGUAGE
-                };
-
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
-
-                const response = await fetch(`${CONFIG.API_BASE_URL}/query/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(requestBody),
-                    signal: controller.signal
+            let optionsHtml = '';
+            options.forEach((option, index) => {
+                optionsHtml += `<button class="option-button" data-option="${index}">${option}</button>`;
+            });
+            
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    ${content}
+                    <div class="pgrs-options">
+                        ${optionsHtml}
+                    </div>
+                    <div class="message-time">${getCurrentTime()}</div>
+                </div>
+            `;
+            
+            elements.chatMessages.insertBefore(messageDiv, elements.typingIndicator);
+            scrollToBottom();
+            
+            // Add event listeners to option buttons
+            messageDiv.querySelectorAll('.option-button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const optionIndex = parseInt(e.target.dataset.option);
+                    const optionText = options[optionIndex];
+                    addMessage(optionText, true);
+                    handleUserChoice(optionIndex);
                 });
+            });
+        }
 
-                clearTimeout(timeoutId);
-                hideTyping();
+        function addLinksMessage(content, links) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot';
+            
+            let linksHtml = '';
+            links.forEach(link => {
+                linksHtml += `<button class="link-button" onclick="window.open('${link.url}', '_blank')">${link.text}</button>`;
+            });
+            
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    ${content}
+                    ${linksHtml}
+                    <div class="message-time">${getCurrentTime()}</div>
+                </div>
+            `;
+            
+            elements.chatMessages.insertBefore(messageDiv, elements.typingIndicator);
+            scrollToBottom();
+        }
 
-                if (!response.ok) {
-                    let errorMessage;
-                    try {
-                        const errorData = await response.json();
-                        errorMessage = errorData.reply || errorData.error || `Server error: ${response.status}`;
-                    } catch {
-                        errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        function addInputMessage(content, inputType = 'text') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot';
+            
+            let inputHtml = '';
+            if (inputType === 'rating') {
+                inputHtml = `
+                    <div class="rating-container">
+                        ${[1,2,3,4,5].map(num => 
+                            `<button class="rating-button" data-rating="${num}">${num}</button>`
+                        ).join('')}
+                    </div>
+                    <button class="submit-btn" id="submitRating" disabled>Submit Rating</button>
+                `;
+            } else {
+                inputHtml = `
+                    <input type="text" class="input-field" id="grievanceInput" placeholder="Enter Grievance ID" maxlength="20">
+                    <button class="submit-btn" id="submitGrievanceId">Submit</button>
+                `;
+            }
+            
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    ${content}
+                    ${inputHtml}
+                    <div class="message-time">${getCurrentTime()}</div>
+                </div>
+            `;
+            
+            elements.chatMessages.insertBefore(messageDiv, elements.typingIndicator);
+            scrollToBottom();
+            
+            if (inputType === 'rating') {
+                setupRatingButtons(messageDiv);
+            } else {
+                setupGrievanceIdInput(messageDiv);
+            }
+        }
+
+        function setupRatingButtons(container) {
+            const ratingButtons = container.querySelectorAll('.rating-button');
+            const submitBtn = container.querySelector('#submitRating');
+            
+            ratingButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    ratingButtons.forEach(b => b.classList.remove('selected'));
+                    e.target.classList.add('selected');
+                    selectedRating = parseInt(e.target.dataset.rating);
+                    submitBtn.disabled = false;
+                });
+            });
+            
+            submitBtn.addEventListener('click', () => {
+                if (selectedRating) {
+                    addMessage(`Rating: ${selectedRating}`, true);
+                    handleRatingSubmission(selectedRating);
+                }
+            });
+        }
+
+        function setupGrievanceIdInput(container) {
+            const input = container.querySelector('#grievanceInput');
+            const submitBtn = container.querySelector('#submitGrievanceId');
+            
+            input.addEventListener('input', () => {
+                submitBtn.disabled = input.value.trim().length === 0;
+            });
+            
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && input.value.trim()) {
+                    submitBtn.click();
+                }
+            });
+            
+            submitBtn.addEventListener('click', () => {
+                const grievanceId = input.value.trim();
+                if (grievanceId) {
+                    addMessage(`Grievance ID: ${grievanceId}`, true);
+                    handleGrievanceIdSubmission(grievanceId);
+                }
+            });
+            
+            setTimeout(() => input.focus(), 100);
+        }
+
+        // PGRS Flow Logic
+        function handleUserChoice(optionIndex) {
+            const script = PGRS_SCRIPTS[currentLanguage];
+            
+            switch (chatState) {
+                case 'start':
+                    if (optionIndex === 0) { // YES - Register grievance
+                        chatState = 'register';
+                        setTimeout(() => {
+                            addMessage(script.register_methods);
+                            addLinksMessage('', [
+                                { text: script.website_button, url: script.website_link },
+                                { text: script.app_button, url: script.app_link }
+                            ]);
+                            setTimeout(() => {
+                                addMessage(script.thank_you);
+                                chatState = 'end';
+                            }, 1000);
+                        }, 500);
+                    } else { // NO - Already registered
+                        chatState = 'already_registered';
+                        setTimeout(() => {
+                            addOptionsMessage(script.question2, [script.yes, script.no]);
+                        }, 500);
                     }
-                    throw new Error(errorMessage);
-                }
+                    break;
+                
+                case 'already_registered':
+                    if (optionIndex === 0) { // YES - Has grievance registered
+                        chatState = 'check_or_feedback';
+                        setTimeout(() => {
+                            addOptionsMessage(script.question21, [script.yes, script.no]);
+                            chatState = 'check_status';
+                        }, 500);
+                    } else { // NO - Doesn't have grievance
+                        setTimeout(() => {
+                            addMessage(script.thank_you);
+                            chatState = 'end';
+                        }, 500);
+                    }
+                    break;
+                
+                case 'check_status':
+                    if (optionIndex === 0) { // YES - Check status
+                        setTimeout(() => {
+                            addInputMessage(script.grievance_id_prompt, 'text');
+                            chatState = 'awaiting_grievance_id';
+                        }, 500);
+                    } else { // NO - Don't check status
+                        setTimeout(() => {
+                            addOptionsMessage(script.question22, [script.yes, script.no]);
+                            chatState = 'feedback_choice';
+                        }, 500);
+                    }
+                    break;
+                
+                case 'feedback_choice':
+                    if (optionIndex === 0) { // YES - Give feedback
+                        setTimeout(() => {
+                            addMessage(script.rating_prompt);
+                            addInputMessage(script.rating_request, 'rating');
+                            chatState = 'awaiting_rating';
+                        }, 500);
+                    } else { // NO - No feedback
+                        setTimeout(() => {
+                            addMessage(script.thank_you);
+                            chatState = 'end';
+                        }, 500);
+                    }
+                    break;
+            }
+        }
 
-                const data = await response.json();
-                updateConnectionStatus(true);
-                
-                if (data.reply) {
-                    addMessage(data.reply, false);
-                } else {
-                    const langConfig = LANGUAGE_CONFIG[CONFIG.CURRENT_LANGUAGE];
-                    addMessage(langConfig.noResponse, false);
-                }
-                
-            } catch (error) {
-                hideTyping();
-                console.error('Send message error:', error);
-                
-                const langConfig = LANGUAGE_CONFIG[CONFIG.CURRENT_LANGUAGE];
-                
-                if (retries < CONFIG.MAX_RETRIES && (error.name === 'AbortError' || error.message.includes('fetch'))) {
-                    showStatus(`Retrying... (${retries + 1}/${CONFIG.MAX_RETRIES})`, 'info');
+        function handleGrievanceIdSubmission(grievanceId) {
+            const script = PGRS_SCRIPTS[currentLanguage];
+            
+            // Simple validation - check if it looks like a grievance ID
+            const grievanceIdPattern = /^G-[A-Za-z0-9]+$/;
+            
+            if (grievanceIdPattern.test(grievanceId)) {
+                // Valid format - simulate status check
+                setTimeout(() => {
+                    addMessage(script.status_prefix);
+                    addMessage("Status: Under Review - Your grievance is being processed by the concerned department. Expected resolution time: 7-10 working days.", false);
                     setTimeout(() => {
-                        sendMessage(message, retries + 1);
-                    }, CONFIG.RETRY_DELAY);
-                    return;
-                } else {
-                    updateConnectionStatus(false);
-                    showStatus(error.message, 'error');
-                    addMessage(langConfig.errorProcessing, false);
-                }
-            } finally {
-                isSending = false;
-                updateSendButtonState();
-                elements.messageInput.focus();
+                        addMessage(script.thank_you);
+                        chatState = 'end';
+                    }, 1000);
+                }, 500);
+            } else {
+                // Invalid format
+                setTimeout(() => {
+                    addMessage(script.invalid_grievance_id);
+                    addInputMessage(script.grievance_id_prompt, 'text');
+                }, 500);
             }
         }
 
-        async function clearChat() {
-            try {
-                const messages = elements.chatMessages.querySelectorAll('.message, .status-indicator');
-                messages.forEach(msg => msg.remove());
-                
-                addWelcomeMessage();
-                showStatus('Chat cleared successfully', 'success');
-            } catch (error) {
-                console.error('Clear chat error:', error);
-                showStatus('Failed to clear chat', 'error');
+        function handleRatingSubmission(rating) {
+            const script = PGRS_SCRIPTS[currentLanguage];
+            
+            if (rating >= 1 && rating <= 5) {
+                setTimeout(() => {
+                    addMessage(`Thank you for rating our service ${rating}/5. Your feedback helps us improve our services.`);
+                    setTimeout(() => {
+                        addMessage(script.thank_you);
+                        chatState = 'end';
+                    }, 1000);
+                }, 500);
+            } else {
+                setTimeout(() => {
+                    addMessage(script.invalid_input);
+                    addInputMessage(script.rating_request, 'rating');
+                }, 500);
             }
         }
 
-        async function startNewSession() {
-            try {
-                CONFIG.SESSION_ID = generateSessionId();
-                console.log('New session started:', CONFIG.SESSION_ID);
-                
-                const messages = elements.chatMessages.querySelectorAll('.message, .status-indicator');
-                messages.forEach(msg => msg.remove());
-                
-                addWelcomeMessage();
-                showStatus('New session started', 'success');
-            } catch (error) {
-                console.error('New session error:', error);
-                showStatus('Failed to start new session', 'error');
+        // UI Control Functions
+        function toggleChatWindow() {
+            isWindowOpen = !isWindowOpen;
+            elements.chatWindow.style.display = isWindowOpen ? 'flex' : 'none';
+            
+            if (isWindowOpen && chatState === 'start') {
+                startConversation();
             }
         }
 
-        async function checkConnection() {
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
+        function startConversation() {
+            const script = PGRS_SCRIPTS[currentLanguage];
+            
+            // Clear any existing messages
+            const existingMessages = elements.chatMessages.querySelectorAll('.message');
+            existingMessages.forEach(msg => msg.remove());
+            
+            chatState = 'start';
+            
+            setTimeout(() => {
+                addMessage(script.welcome);
+                setTimeout(() => {
+                    addOptionsMessage(script.question1, [script.yes, script.no]);
+                }, 1000);
+            }, 500);
+        }
 
-                const response = await fetch(`${CONFIG.API_BASE_URL}/health/`, {
-                    method: 'GET',
-                    signal: controller.signal
-                });
-                
-                clearTimeout(timeoutId);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const connected = data.status === 'healthy';
-                    updateConnectionStatus(connected);
-                    return connected;
-                } else {
-                    updateConnectionStatus(false);
-                    return false;
-                }
-            } catch (error) {
-                console.error('Connection check failed:', error);
-                updateConnectionStatus(false);
-                return false;
+        function clearChat() {
+            const messages = elements.chatMessages.querySelectorAll('.message, .status-indicator');
+            messages.forEach(msg => msg.remove());
+            chatState = 'start';
+            selectedRating = null;
+            pendingGrievanceId = '';
+        }
+
+        function updateLanguage(langCode) {
+            currentLanguage = langCode;
+            
+            // If chat is active, inform about language change
+            if (isWindowOpen && elements.chatMessages.querySelectorAll('.message').length > 0) {
+                const script = PGRS_SCRIPTS[langCode];
+                addMessage(`Language switched to ${langCode === 'en' ? 'English' : langCode === 'hi' ? 'हिंदी' : 'मराठी'}. Restarting conversation...`);
+                setTimeout(() => {
+                    startConversation();
+                }, 1000);
+            }
+            
+            // Save language preference
+            try {
+                localStorage.setItem('pgrs_language', langCode);
+            } catch (e) {
+                console.warn('Could not save language preference:', e);
             }
         }
 
@@ -968,71 +944,35 @@
         elements.chatBubble.addEventListener('click', toggleChatWindow);
         elements.closeChat.addEventListener('click', toggleChatWindow);
         
-        elements.chatForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const message = elements.messageInput.value.trim();
-            if (message && !isSending) {
-                await sendMessage(message);
-            }
-        });
-
-        elements.messageInput.addEventListener('input', updateSendButtonState);
-        elements.clearChatBtn.addEventListener('click', clearChat);
-        elements.newSessionBtn.addEventListener('click', startNewSession);
-
-        // Language selector event listener - FIXED
         elements.languageSelect.addEventListener('change', (e) => {
-            const selectedLang = e.target.value;
-            console.log('Language changed to:', selectedLang);
-            updateLanguage(selectedLang);
+            updateLanguage(e.target.value);
         });
-
-        // Suggestion buttons
-        elements.suggestionButtons.addEventListener('click', async (e) => {
-            if (e.target.classList.contains('suggestion-btn')) {
-                const langCode = CONFIG.CURRENT_LANGUAGE;
-                const suggestion = e.target.getAttribute(`data-${langCode}`) || e.target.textContent;
-                elements.messageInput.value = suggestion;
-                updateSendButtonState();
-                if (!isSending && isConnected) {
-                    await sendMessage(suggestion);
-                }
-            }
+        
+        elements.restartBtn.addEventListener('click', () => {
+            startConversation();
+        });
+        
+        elements.clearChatBtn.addEventListener('click', () => {
+            clearChat();
         });
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('ChatBot UI initialized');
+            console.log('PGRS ChatBot initialized');
             
             // Load saved language preference
             try {
-                const savedLanguage = localStorage.getItem('chatbot_language');
-                if (savedLanguage && LANGUAGE_CONFIG[savedLanguage]) {
-                    CONFIG.CURRENT_LANGUAGE = savedLanguage;
+                const savedLanguage = localStorage.getItem('pgrs_language');
+                if (savedLanguage && PGRS_SCRIPTS[savedLanguage]) {
+                    currentLanguage = savedLanguage;
                     elements.languageSelect.value = savedLanguage;
                 }
             } catch (e) {
                 console.warn('Could not load language preference:', e);
             }
-            
-            // Apply current language
-            updateLanguage(CONFIG.CURRENT_LANGUAGE);
-            
-            // Set up periodic connection checks.
-            connectionCheckInterval = setInterval(checkConnection, CONFIG.CONNECTION_CHECK_INTERVAL);
-            
-            // Initial connection check
-            setTimeout(checkConnection, 1000);
         });
 
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', () => {
-            if (connectionCheckInterval) {
-                clearInterval(connectionCheckInterval);
-            }
-        });
-
-        console.log('ChatBot script loaded successfully');
+        console.log('PGRS ChatBot script loaded successfully');
     </script>
 </body>
 </html>
