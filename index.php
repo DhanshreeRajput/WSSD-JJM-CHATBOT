@@ -459,15 +459,15 @@
         /* Enhanced Button Animations - Applied to all interactive buttons */
         .pgrs-options {
             display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-top: 10px;
+            flex-direction: row;
+            gap: 4px;
+            margin-top: 5px;
         }
 
         .option-button {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border: none;
-            padding: 10px 16px;
+            padding: 7px 35px;
             border-radius: 16px;
             font-size: 12px;
             color: white;
@@ -675,9 +675,8 @@
 <body>
     <!-- Demo Content -->
     <div class="demo-content">
-        <h1>Maha-Jal Samadhan PGRS</h1>
-        <p>Public Grievance Redressal System - Click the chat icon to get started</p>
-    </div>
+        <h1>Welcome to the WSSD JJM Chatbot</h1>
+        
 
     <!-- Chat Widget -->
     <div class="chat-widget">
