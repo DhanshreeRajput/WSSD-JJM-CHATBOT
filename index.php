@@ -343,12 +343,16 @@
             font-size: 12px;
             color: #5f6368;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
 
         .suggestion-btn:hover {
             background: #e8eaed;
             transform: translateY(-1px);
+        }
+
+        .suggestion-btn:active {
+            transform: translateY(0);
         }
 
         .chat-input-form {
@@ -440,12 +444,161 @@
             font-size: 11px;
             color: white;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
 
         .quick-action-btn:hover {
             transform: translateY(-1px);
             opacity: 0.9;
+        }
+
+        .quick-action-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Enhanced Button Animations - Applied to all interactive buttons */
+        .pgrs-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .option-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 10px 16px;
+            border-radius: 16px;
+            font-size: 12px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+        }
+
+        .option-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        }
+
+        .option-button:active {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .link-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 10px 16px;
+            border-radius: 16px;
+            font-size: 12px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin: 4px;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .link-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        }
+
+        .link-button:active {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .rating-container {
+            display: flex;
+            gap: 8px;
+            margin: 10px 0;
+            justify-content: center;
+        }
+
+        .rating-button {
+            background: linear-gradient(135deg, #f1f3f4 0%, #e8eaed 100%);
+            border: 2px solid #e1e8ed;
+            padding: 10px 16px;
+            border-radius: 50%;
+            font-size: 14px;
+            font-weight: 600;
+            color: #5f6368;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .rating-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+
+        .rating-button.selected {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+            transform: translateY(-1px);
+        }
+
+        .rating-button:active {
+            transform: translateY(-1px);
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 16px;
+            font-size: 12px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 10px;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            background: #ccc;
+        }
+
+        .submit-btn:active:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e1e8ed;
+            border-radius: 12px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s ease;
+            margin-bottom: 10px;
+        }
+
+        .input-field:focus {
+            border-color: #574bf7ff;
+            box-shadow: 0 0 0 3px rgba(87, 75, 247, 0.1);
         }
 
         .connection-status {
@@ -461,6 +614,51 @@
 
         .connection-status.connected {
             background: #27ae60;
+        }
+
+        /* Quick Suggestions Styles */
+        .quick-suggestions {
+            margin-bottom: 15px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .quick-suggestions h4 {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .suggestions-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .quick-suggestion-btn {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            color: #495057;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+            line-height: 1.3;
+        }
+
+        .quick-suggestion-btn:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+
+        .quick-suggestion-btn:active {
+            transform: translateY(0);
         }
 
         /* Responsive Design */
@@ -521,6 +719,14 @@
             </div>
 
             <div class="chat-input-area">
+                <!-- Quick Suggestions Section -->
+                <div class="quick-suggestions" id="quickSuggestions">
+                    <h4 id="suggestionsTitle">Quick Suggestions:</h4>
+                    <div class="suggestions-grid" id="suggestionsGrid">
+                        <!-- Dynamic suggestions will be loaded here -->
+                    </div>
+                </div>
+
                 <div class="quick-actions">
                     <button class="quick-action-btn" id="restartBtn">Restart</button>
                     <button class="quick-action-btn" id="clearChatBtn">Clear Chat</button>
@@ -553,7 +759,15 @@
                 yes: "YES",
                 no: "NO",
                 website_button: "Register via Website",
-                app_button: "Download Mobile App"
+                app_button: "Download Mobile App",
+                suggestions_title: "Quick Suggestions:",
+                suggestions: [
+                    "I want to register a grievance",
+                    //"Would you like to register a Grievance on the Maha-Jal Samadhan Public Grievance Redressal System?",
+                    //"Has a Grievance already been registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
+                    //"Would you like to check the status of the grievance which you have registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
+                    //"Would you like to provide feedback regarding the resolution of your grievance addressed through the Maha-Jal Samadhan Public Grievance Redressal System?"
+                ]
             },
             mr: {
                 welcome: "नमस्कार, महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर आपले स्वागत आहे.",
@@ -570,13 +784,21 @@
                 invalid_grievance_id: "आपण आपल्या तक्रारीचा \"Grievance ID\" म्हणजेच तक्रार नोंदणी क्रमांक चुकीचा दाखल केला आहे. कृपया योग्य \"Grievance ID\" म्हणजेच तक्रार नोंदणी क्रमांक दाखल/नमूद करा",
                 status_prefix: "आपल्या तक्रारीची सद्यस्थिती पुढीलप्रमाणे आहे:",
                 rating_prompt: "महा-जल समाधान' सार्वजनिक तक्रार निवारण प्रणालीवर आपल्या तक्रारीच्या निराकरणासंदर्भात, सेवा गुणवत्तेच्या दृष्टीने आपण १ ते ५ या श्रेणीमध्ये किती गुण देऊ इच्छिता ?१ म्हणजे 'असमाधानकारक' आणि ५ म्हणजे 'समाधानकारक'.",
-                rating_request: "कृपया आपल्याद्वारे देण्यात आलेले गुण १ ते ५ मध्ये देण्यात यावे",
+                rating_request: "कृपया आपल्यादवारे देण्यात आलेले गुण १ ते ५ मध्ये देण्यात यावे",
                 invalid_input: "आपण दिलेली माहिती अवैध आहे. कृपया पुन्हा प्रयत्न करा.",
                 thank_you: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीचा वापर केल्याबद्दल आपले धन्यवाद.",
                 yes: "होय",
                 no: "नाही",
                 website_button: "वेबसाईटवरून नोंदणी करा",
-                app_button: "मोबाईल अॅप डाउनलोड करा"
+                app_button: "मोबाईल अॅप डाउनलोड करा",
+                suggestions_title: "त्वरित सूचना:",
+                suggestions: [
+                    "मला तक्रार नोंदवायची आहे",
+                    //"महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये आपण तक्रार नोंदवू इच्छिता का?",
+                    //"महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये नोंदविण्यात आलेली तक्रार आहे का?",
+                    //"आपण नोंदवलेल्या तक्रारीची स्थिती तपासू इच्छिता का?",
+                    //"आपल्या तक्रारीच्या निराकरणाबाबत अभिप्राय द्याल का?"
+                ]
             }
         };
 
@@ -596,7 +818,10 @@
             typingIndicator: document.getElementById('typingIndicator'),
             languageSelect: document.getElementById('languageSelect'),
             restartBtn: document.getElementById('restartBtn'),
-            clearChatBtn: document.getElementById('clearChatBtn')
+            clearChatBtn: document.getElementById('clearChatBtn'),
+            quickSuggestions: document.getElementById('quickSuggestions'),
+            suggestionsGrid: document.getElementById('suggestionsGrid'),
+            suggestionsTitle: document.getElementById('suggestionsTitle')
         };
 
         // Utility Functions
@@ -768,6 +993,95 @@
             setTimeout(() => input.focus(), 100);
         }
 
+        function loadQuickSuggestions() {
+            const script = PGRS_SCRIPTS[currentLanguage];
+            elements.suggestionsTitle.textContent = script.suggestions_title;
+            
+            elements.suggestionsGrid.innerHTML = '';
+            
+            // Show first 6 suggestions to avoid overcrowding
+            const suggestionsToShow = script.suggestions.slice(0, 6);
+            
+            suggestionsToShow.forEach(suggestion => {
+                const suggestionBtn = document.createElement('button');
+                suggestionBtn.className = 'quick-suggestion-btn';
+                suggestionBtn.textContent = suggestion;
+                suggestionBtn.addEventListener('click', () => {
+                    handleQuickSuggestion(suggestion);
+                });
+                elements.suggestionsGrid.appendChild(suggestionBtn);
+            });
+        }
+
+        function handleQuickSuggestion(suggestion) {
+            // Add user message
+            addMessage(suggestion, true);
+            
+            // Hide suggestions temporarily to avoid clutter
+            elements.quickSuggestions.style.display = 'none';
+            
+            // Process the suggestion based on current state and content
+            setTimeout(() => {
+                processQuickSuggestion(suggestion);
+                // Show suggestions again after processing
+                setTimeout(() => {
+                    elements.quickSuggestions.style.display = 'block';
+                }, 1000);
+            }, 500);
+        }
+
+        function processQuickSuggestion(suggestion) {
+            const script = PGRS_SCRIPTS[currentLanguage];
+            const lowerSuggestion = suggestion.toLowerCase();
+            
+            // Handle greetings
+            if (lowerSuggestion.includes('hello') || lowerSuggestion.includes('नमस्कार')) {
+                addMessage(script.welcome);
+                setTimeout(() => {
+                    addOptionsMessage(script.question1, [script.yes, script.no]);
+                    chatState = 'start';
+                }, 1000);
+                return;
+            }
+            
+            // Handle yes/no responses
+            if (lowerSuggestion === 'yes' || lowerSuggestion === 'होय') {
+                handleUserChoice(0); // YES option
+                return;
+            }
+            
+            if (lowerSuggestion === 'no' || lowerSuggestion === 'नाही') {
+                handleUserChoice(1); // NO option
+                return;
+            }
+            
+            // Handle specific questions as if starting conversation
+            if (lowerSuggestion.includes('register') || lowerSuggestion.includes('grievance') || 
+                lowerSuggestion.includes('तक्रार') || lowerSuggestion.includes('नोंदव')) {
+                
+                chatState = 'start';
+                addOptionsMessage(script.question1, [script.yes, script.no]);
+                return;
+            }
+            
+            // For other suggestions that are questions, start the conversation
+            if (lowerSuggestion.includes('?') || lowerSuggestion.includes('का?')) {
+                chatState = 'start';
+                addMessage(script.welcome);
+                setTimeout(() => {
+                    addOptionsMessage(script.question1, [script.yes, script.no]);
+                }, 1000);
+                return;
+            }
+            
+            // Default response for unrecognized suggestions
+            addMessage(script.welcome);
+            setTimeout(() => {
+                addOptionsMessage(script.question1, [script.yes, script.no]);
+                chatState = 'start';
+            }, 1000);
+        }
+
         // PGRS Flow Logic
         function handleUserChoice(optionIndex) {
             const script = PGRS_SCRIPTS[currentLanguage];
@@ -890,8 +1204,11 @@
             isWindowOpen = !isWindowOpen;
             elements.chatWindow.style.display = isWindowOpen ? 'flex' : 'none';
             
-            if (isWindowOpen && chatState === 'start') {
-                startConversation();
+            if (isWindowOpen) {
+                loadQuickSuggestions();
+                if (chatState === 'start') {
+                    startConversation();
+                }
             }
         }
 
@@ -903,6 +1220,7 @@
             existingMessages.forEach(msg => msg.remove());
             
             chatState = 'start';
+            elements.quickSuggestions.style.display = 'block';
             
             setTimeout(() => {
                 addMessage(script.welcome);
@@ -918,15 +1236,20 @@
             chatState = 'start';
             selectedRating = null;
             pendingGrievanceId = '';
+            elements.quickSuggestions.style.display = 'block';
+            loadQuickSuggestions();
         }
 
         function updateLanguage(langCode) {
             currentLanguage = langCode;
             
+            // Update quick suggestions
+            loadQuickSuggestions();
+            
             // If chat is active, inform about language change
             if (isWindowOpen && elements.chatMessages.querySelectorAll('.message').length > 0) {
                 const script = PGRS_SCRIPTS[langCode];
-                addMessage(`Language switched to ${langCode === 'en' ? 'English' : langCode === 'hi' ? 'हिंदी' : 'मराठी'}. Restarting conversation...`);
+                addMessage(`Language switched to ${langCode === 'en' ? 'English' : 'मराठी'}. Restarting conversation...`);
                 setTimeout(() => {
                     startConversation();
                 }, 1000);
@@ -970,6 +1293,9 @@
             } catch (e) {
                 console.warn('Could not load language preference:', e);
             }
+            
+            // Load initial suggestions
+            loadQuickSuggestions();
         });
 
         console.log('PGRS ChatBot script loaded successfully');
