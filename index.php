@@ -1,9 +1,59 @@
+<?php
+// Include the API helper
+require_once 'api_helper.php';
+
+// Initialize the API client
+$api = new MahaJalAPI('http://localhost:8000'); // Change this to your FastAPI server URL
+
+// Handle language setting
+$language = isset($_POST['language']) ? $_POST['language'] : (isset($_GET['lang']) ? $_GET['lang'] : 'en');
+if (!in_array($language, ['en', 'mr'])) {
+    $language = 'en';
+}
+
+// Initialize variables
+$bot_response = '';
+$user_message = '';
+$error_message = '';
+$api_status = $api->checkHealth();
+
+// Handle form submission
+if ($_POST && isset($_POST['user_message'])) {
+    $user_message = trim($_POST['user_message']);
+    
+    if (!empty($user_message)) {
+        // Send query to FastAPI backend
+        $result = $api->sendQuery($user_message, $language);
+        
+        if ($result['success']) {
+            $bot_response = $result['data']['reply'];
+        } else {
+            $error_message = 'Error: ' . $result['error'];
+        }
+    } else {
+        $error_message = $language == 'mr' ? 'कृपया एक संदेश टाइप करा' : 'Please type a message';
+    }
+}
+
+// Get suggestions for the current language
+$suggestions = $api->getSuggestions($language);
+
+// Auto-start conversation with welcome message if no previous interaction
+$show_welcome = empty($_POST) && empty($_GET['lang']);
+if ($show_welcome) {
+    $result = $api->sendQuery('hello', $language);
+    if ($result['success']) {
+        $bot_response = $result['data']['reply'];
+    }
+}
+?>
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?php echo $language; ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WSSD JJM</title>
+    <title><?php echo $language == 'mr' ? 'महा-जल समाधान चॅटबॉट' : 'Maha-Jal Samadhan Chatbot'; ?></title>
     <style>
         * {
             margin: 0;
@@ -12,221 +62,105 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #fbfcfdff 0%, #f4f3f5ff 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             padding: 20px;
+            line-height: 1.6;
         }
 
-        .demo-content {
-            text-align: center;
-            color: blue;
-            padding: 50px 20px;
-        }
-
-        .demo-content h1 {
-            font-size: 2.5em;
-            margin-bottom: 20px;
-        }
-
-        .demo-content p {
-            font-size: 1.2em;
-            opacity: 0.9;
-        }
-
-        /* Chat Widget Styles */
-        .chat-widget {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 10000;
-        }
-
-        .chat-bubble {
-            position: relative;
-            background: linear-gradient(135deg, #3b5fffff 0%, #7d99f8ff 100%);
-            width: 72px;
-            height: 74px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(103, 105, 245, 0.4);
-            transition: all 0.3s ease;
-            animation: pulse 2s infinite;
-        }
-
-        .chat-bubble:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 25px rgba(118, 120, 253, 0.6);
-        }
-
-        .chat-bubble svg {
-            width: 28px;
-            height: 28px;
-            fill: white;
-        }
-
-        .chat-bubble img {
-            width: 74px;
-            height: 74px;
-            object-fit: contain;
-            display: block;
-        }
-
-        .notification-badge {
-            position: absolute;
-            top: -2px;
-            right: -2px;
-            background: #e74c3c;
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid white;
-        }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 4px 20px rgba(117, 160, 253, 0.4); }
-            50% { box-shadow: 0 4px 20px rgba(132, 134, 255, 0.8); }
-            100% { box-shadow: 0 4px 20px rgba(124, 153, 247, 0.4); }
-        }
-
-        /* Chat Window */
-        .chat-window {
-            position: fixed;
-            bottom: 103px;
-            right: 20px;
-            width: 380px;
-            height: 500px;
+        .chat-container {
             background: white;
-            border-radius: 16px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-            display: none;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 900px;
+            min-height: 700px;
+            display: flex;
             flex-direction: column;
             overflow: hidden;
-            z-index: 9999;
-            animation: slideUp 0.3s ease;
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
         }
 
         .chat-header {
-            background: linear-gradient(135deg, #e6e9f0ff 0%, #092becff 100%);
-            padding: 15px 20px;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
             color: white;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            padding: 25px;
+            text-align: center;
             position: relative;
         }
 
-        .chat-header-info {
-            display: flex;
-            align-items: center;
-            flex: 1;
-        }
-
-        .chat-avatar {
-            width: auto;
-            height: auto;
-            border-radius: 0;
-            background: transparent;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 12px;
-        }
-
-        .chat-avatar img {
-            width: 72px;
-            height: 72px;
-            object-fit: contain;
-            display: block;
-        }
-
-        .chat-header-text h3 {
-            font-size: 16px;
+        .chat-header h1 {
+            font-size: 1.6rem;
+            margin-bottom: 8px;
             font-weight: 600;
-            margin-bottom: 2px;
         }
 
-        .chat-header-text p {
-            font-size: 12px;
+        .chat-header p {
             opacity: 0.9;
+            font-size: 0.95rem;
         }
 
-        /* Language Dropdown */
-        .language-selector {
-            display: flex;
+        .status-indicator {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            display: inline-flex;
             align-items: center;
-            margin-right: 10px;
+            font-size: 0.8rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 5px 12px;
+            border-radius: 15px;
         }
 
-        .language-dropdown {
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .status-online {
+            background-color: #4CAF50;
+        }
+
+        .status-offline {
+            background-color: #f44336;
+        }
+
+        .language-selector {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+        }
+
+        .language-selector select {
             background: rgba(255, 255, 255, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.3);
             color: white;
-            padding: 4px 8px;
-            border-radius: 8px;
-            font-size: 12px;
+            padding: 8px 12px;
+            border-radius: 15px;
+            font-size: 0.85rem;
             cursor: pointer;
-            outline: none;
-            transition: all 0.2s;
         }
 
-        .language-dropdown:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        .language-dropdown option {
-            background: #606bfdff;
+        .language-selector select option {
+            background: #4CAF50;
             color: white;
-            padding: 5px;
-        }
-
-        .close-chat {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            padding: 5px;
-            border-radius: 4px;
-            transition: background 0.2s;
-        }
-
-        .close-chat:hover {
-            background: rgba(255, 255, 255, 0.1);
         }
 
         .chat-messages {
             flex: 1;
-            padding: 20px;
+            padding: 30px;
             overflow-y: auto;
             background: #f8f9fa;
-            max-height: 300px;
-            display: flex;
-            flex-direction: column;
+            max-height: 450px;
         }
 
         .message {
-            margin-bottom: 15px;
+            margin-bottom: 25px;
             display: flex;
             align-items: flex-start;
         }
@@ -235,824 +169,310 @@
             justify-content: flex-end;
         }
 
-        .message-content {
-            max-width: 280px;
-            padding: 12px 16px;
-            border-radius: 18px;
-            font-size: 14px;
-            line-height: 1.4;
-            word-wrap: break-word;
+        .message.bot {
+            justify-content: flex-start;
         }
 
-        .message.bot .message-content {
-            background: white;
-            border: 1px solid #e1e8ed;
-            color: #333;
-            border-bottom-left-radius: 8px;
+        .message-content {
+            max-width: 75%;
+            padding: 18px 22px;
+            border-radius: 20px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            white-space: pre-wrap;
         }
 
         .message.user .message-content {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
             border-bottom-right-radius: 8px;
         }
 
-        .message-time {
-            font-size: 11px;
-            color: #999;
-            margin-top: 5px;
-            text-align: right;
-        }
-
-        .message.bot .message-time {
-            text-align: left;
-        }
-
-        .typing-indicator {
-            display: none;
-            padding: 12px 16px;
+        .message.bot .message-content {
             background: white;
-            border: 1px solid #e1e8ed;
-            border-radius: 18px;
+            color: #333;
+            border: 1px solid #e0e0e0;
             border-bottom-left-radius: 8px;
-            max-width: 60px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .suggestions {
+            padding: 0 30px 25px;
+            background: #f8f9fa;
+        }
+
+        .suggestions h3 {
+            color: #333;
             margin-bottom: 15px;
-        }
-
-        .typing-dots {
-            display: flex;
-            gap: 4px;
-        }
-
-        .typing-dots span {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #999;
-            animation: typing 1.4s infinite;
-        }
-
-        .typing-dots span:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-
-        .typing-dots span:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-
-        @keyframes typing {
-            0%, 60%, 100% {
-                transform: translateY(0);
-                opacity: 0.5;
-            }
-            30% {
-                transform: translateY(-10px);
-                opacity: 1;
-            }
-        }
-
-        .chat-input-area {
-            padding: 20px;
-            background: white;
-            border-top: 1px solid #e1e8ed;
-        }
-
-        .suggested-questions {
-            margin-bottom: 15px;
-        }
-
-        .suggested-questions p {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 8px;
-            font-weight: 500;
+            font-size: 0.95rem;
+            font-weight: 600;
         }
 
         .suggestion-buttons {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
-            margin-bottom: 10px;
+            gap: 10px;
         }
 
         .suggestion-btn {
-            background: #f1f3f4;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 16px;
-            font-size: 12px;
-            color: #5f6368;
+            background: #e3f2fd;
+            border: 1px solid #2196F3;
+            color: #2196F3;
+            padding: 10px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s ease;
+            border: none;
+            outline: none;
         }
 
         .suggestion-btn:hover {
-            background: #e8eaed;
+            background: #2196F3;
+            color: white;
             transform: translateY(-1px);
-        }
-
-        .chat-input-form {
-            display: flex;
-            gap: 10px;
-            align-items: center;
         }
 
         .chat-input {
-            flex: 1;
-            padding: 12px 16px;
-            border: 1px solid #e1e8ed;
-            border-radius: 24px;
-            font-size: 14px;
-            outline: none;
-            transition: border-color 0.2s;
+            background: white;
+            padding: 25px;
+            border-top: 1px solid #e0e0e0;
         }
 
-        .chat-input:focus {
-            border-color: #574bf7ff;
-        }
-
-        .send-btn {
-            background: linear-gradient(135deg, #5161f1ff 0%, #858febff 100%);
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
+        .input-group {
             display: flex;
+            gap: 15px;
             align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
         }
 
-        .send-btn:hover:not(:disabled) {
-            transform: scale(1.05);
+        .input-group input[type="text"] {
+            flex: 1;
+            padding: 16px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            outline: none;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
         }
 
-        .send-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
+        .input-group input[type="text"]:focus {
+            border-color: #4CAF50;
         }
 
-        .send-btn svg {
-            width: 16px;
-            height: 16px;
-            fill: white;
-        }
-
-        .status-indicator {
-            padding: 8px 16px;
-            margin: 10px 0;
-            border-radius: 8px;
-            font-size: 12px;
-            text-align: center;
-        }
-
-        .status-indicator.error {
-            background: #ffe6e6;
-            color: #c53030;
-            border: 1px solid #feb2b2;
-        }
-
-        .status-indicator.success {
-            background: #e6fffa;
-            color: #2d7d72;
-            border: 1px solid #81e6d9;
-        }
-
-        .status-indicator.info {
-            background: #e6f3ff;
-            color: #2563eb;
-            border: 1px solid #93c5fd;
-        }
-
-        .quick-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 10px;
-        }
-
-        .quick-action-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            padding: 8px 12px;
-            border-radius: 16px;
-            font-size: 11px;
+        .input-group button {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
             color: white;
+            border: none;
+            padding: 16px 28px;
+            border-radius: 25px;
             cursor: pointer;
-            transition: all 0.2s;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: transform 0.2s ease;
+            min-width: 90px;
         }
 
-        .quick-action-btn:hover {
-            transform: translateY(-1px);
-            opacity: 0.9;
+        .input-group button:hover {
+            transform: translateY(-2px);
         }
 
-        .connection-status {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #e74c3c;
-            transition: background-color 0.3s;
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px 20px;
+            margin: 15px 30px;
+            border-radius: 10px;
+            border-left: 4px solid #c62828;
         }
 
-        .connection-status.connected {
-            background: #27ae60;
+        .welcome-message {
+            text-align: center;
+            padding: 50px 30px;
+            color: #666;
         }
 
-        /* Responsive Design */
-        @media (max-width: 480px) {
-            .chat-window {
-                right: 10px;
-                left: 10px;
-                width: auto;
-                bottom: 80px;
+        .welcome-message h2 {
+            color: #4CAF50;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .welcome-message p {
+            font-size: 0.95rem;
+        }
+
+        /* Make links in bot messages clickable */
+        .message.bot .message-content a {
+            color: #2196F3;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .message.bot .message-content a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .chat-container {
+                min-height: 90vh;
+                max-width: 100%;
+            }
+            
+            .message-content {
+                max-width: 90%;
+                padding: 15px 18px;
+            }
+            
+            .language-selector,
+            .status-indicator {
+                position: static;
+                margin: 8px 0;
+            }
+            
+            .chat-header {
+                text-align: left;
+                padding: 20px;
+            }
+            
+            .chat-header h1 {
+                font-size: 1.3rem;
+            }
+            
+            .chat-messages {
+                padding: 20px;
+            }
+            
+            .suggestions {
+                padding: 0 20px 20px;
+            }
+            
+            .chat-input {
+                padding: 20px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Demo Content -->
-    <div class="demo-content">
-        <h1>WSSD AI Demo Page</h1>
-        <!--<p>Your FastAPI chatbot is ready! Click the orange chat bubble to start a conversation.</p>
-        <br>
-        <p style="font-size: 1em; opacity: 0.7;">This demo page shows how the chatbot widget integrates with your website.</p>-->
-    </div>
-
-    <!-- Chat Widget -->
-    <div class="chat-widget">
-        <div class="chat-bubble" id="chatBubble">
-            <img src="logo/main_logo.png" alt="Chat"/>
-            <div class="notification-badge" id="notificationBadge" style="display: none;">0</div>
-        </div>
-
-        <div class="chat-window" id="chatWindow">
-            <div class="chat-header">
-                <div class="chat-header-info">
-                    <div class="chat-avatar">
-                        <img src="logo/jjm_new_logo.svg" alt="WSSD Logo">
-                    </div>
-                    <div class="chat-header-text">
-                        <h3>WSSD AI Assistant</h3>
-                        <p id="connectionStatus">Connecting...</p>
-                    </div>
-                </div>
-                
-                <div class="language-selector">
-                    <select class="language-dropdown" id="languageSelect">
-                        <option value="en">English</option>
-                        <option value="hi">हिंदी</option>
-                        <option value="mr">मराठी</option>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="language-selector">
+                <form method="GET" style="display: inline;">
+                    <select name="lang" onchange="this.form.submit()">
+                        <option value="en" <?php echo $language == 'en' ? 'selected' : ''; ?>>English</option>
+                        <option value="mr" <?php echo $language == 'mr' ? 'selected' : ''; ?>>मराठी</option>
                     </select>
-                </div>
-                
-                <button class="close-chat" id="closeChat">&times;</button>
-                <div class="connection-status" id="connectionIndicator"></div>
-            </div>
-
-            <div class="chat-messages" id="chatMessages">
-                <div class="typing-indicator" id="typingIndicator">
-                    <div class="typing-dots">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="chat-input-area">
-                <div class="suggested-questions">
-                    <p id="suggestionsLabel">Quick suggestions:</p>
-                    <div class="suggestion-buttons" id="suggestionButtons">
-                        <button class="suggestion-btn"
-                                data-en="What is the role of SWSM in Jal Jeevan Mission?"
-                                data-hi="जल जीवन मिशन में SWSM की क्या भूमिका है?"
-                                data-mr="जल जीवन मिशनमध्ये SWSM ची भूमिका काय आहे?">
-                            What is the role of SWSM in Jal Jeevan Mission?
-                        </button>
-                        <button class="suggestion-btn"
-                                data-en="How does GSDA keep drinking water sources sustainable?"
-                                data-hi="GSDA पेयजल स्रोतों को टिकाऊ कैसे रखता है?"
-                                data-mr="GSDA पिण्याच्या पाण्याचे स्रोत शाश्वत कसे ठेवते?">
-                            How does GSDA keep drinking water sources sustainable?
-                        </button>
-                        <button class="suggestion-btn"
-                                data-en="What are the features of Maha Jal Samadhan system?"
-                                data-hi="महा जल समाधान प्रणाली की विशेषताएँ क्या हैं?"
-                                data-mr="महा जल समाधान प्रणालीची वैशिष्ट्ये कोणती?">
-                            What are the features of Maha Jal Samadhan system?
-                        </button>
-                    </div>
-                    <div class="quick-actions">
-                        <button class="quick-action-btn" id="clearChat">Clear Chat</button>
-                        <button class="quick-action-btn" id="newSession">New Session</button>
-                    </div>
-                </div>
-
-                <form class="chat-input-form" id="chatForm">
-                    <input type="text" 
-                           class="chat-input" 
-                           id="messageInput" 
-                           placeholder="Ask your query here" 
-                           maxlength="500"
-                           autocomplete="off">
-                    <button type="submit" class="send-btn" id="sendBtn">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/>
-                        </svg>
-                    </button>
                 </form>
             </div>
+            
+            <div class="status-indicator">
+                <div class="status-dot <?php echo $api_status ? 'status-online' : 'status-offline'; ?>"></div>
+                <?php echo $api_status ? ($language == 'mr' ? 'ऑनलाइन' : 'Online') : ($language == 'mr' ? 'ऑफलाइन' : 'Offline'); ?>
+            </div>
+            
+            <h1><?php echo $language == 'mr' ? 'महा-जल समाधान' : 'Maha-Jal Samadhan'; ?></h1>
+            <p><?php echo $language == 'mr' ? 'सार्वजनिक तक्रार निवारण प्रणाली - चॅटबॉट' : 'Public Grievance Redressal System - Chatbot'; ?></p>
+        </div>
+
+        <div class="chat-messages">
+            <?php if (!empty($error_message)): ?>
+                <div class="error-message">
+                    <?php echo htmlspecialchars($error_message); ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if (!empty($user_message)): ?>
+                <div class="message user">
+                    <div class="message-content">
+                        <?php echo nl2br(htmlspecialchars($user_message)); ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <?php if (!empty($bot_response)): ?>
+                <div class="message bot">
+                    <div class="message-content">
+                        <?php 
+                        // Make URLs clickable in bot responses
+                        $response_with_links = preg_replace(
+                            '/(https?:\/\/[^\s]+)/',
+                            '<a href="$1" target="_blank">$1</a>',
+                            htmlspecialchars($bot_response)
+                        );
+                        echo nl2br($response_with_links); 
+                        ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <?php if (empty($user_message) && empty($bot_response) && !$show_welcome): ?>
+                <div class="welcome-message">
+                    <h2><?php echo $language == 'mr' ? 'आपले स्वागत आहे!' : 'Welcome!'; ?></h2>
+                    <p><?php echo $language == 'mr' ? 'आपली तक्रार नोंदविण्यासाठी किंवा माहिती मिळविण्यासाठी मला संदेश पाठवा.' : 'Send me a message to register your grievance or get information.'; ?></p>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <?php if (!empty($suggestions)): ?>
+            <div class="suggestions">
+                <h3><?php echo $language == 'mr' ? 'सुचविलेले विकल्प:' : 'Suggested Options:'; ?></h3>
+                <div class="suggestion-buttons">
+                    <?php foreach ($suggestions as $suggestion): ?>
+                        <button class="suggestion-btn" onclick="document.getElementById('user_input').value='<?php echo addslashes($suggestion); ?>'; document.getElementById('chat-form').submit();">
+                            <?php echo htmlspecialchars($suggestion); ?>
+                        </button>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <div class="chat-input">
+            <form method="POST" id="chat-form">
+                <input type="hidden" name="language" value="<?php echo $language; ?>">
+                <div class="input-group">
+                    <input 
+                        type="text" 
+                        name="user_message" 
+                        id="user_input"
+                        placeholder="<?php echo $language == 'mr' ? 'आपला संदेश इथे टाइप करा...' : 'Type your message here...'; ?>" 
+                        required
+                        autocomplete="off"
+                        maxlength="500"
+                    >
+                    <button type="submit">
+                        <?php echo $language == 'mr' ? 'पाठवा' : 'Send'; ?>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
     <script>
-        // Language configurations
-        const LANGUAGE_CONFIG = {
-            en: {
-                name: 'English',
-                welcomeMessage: "Hello! I'm your AI assistant. I can help you with information from uploaded documents. How can I help you today?",
-                placeholder: "Ask your query here",
-                suggestionsLabel: "Quick suggestions:",
-                connectionOnline: "Online • Ready to help",
-                connectionOffline: "Offline • Reconnecting...",
-                clearChat: "Clear Chat",
-                newSession: "New Session",
-                systemNotReady: "System is not ready. Please check if documents are loaded and Ollama is running.",
-                errorProcessing: "I encountered an error processing your request. Please try again.",
-                waitMessage: "Please wait a moment before sending another message.",
-                noResponse: "I couldn't find relevant information in the documents. Please ask questions related to the uploaded content or try rephrasing your query."
-            },
-            hi: {
-                name: 'हिंदी',
-                welcomeMessage: "नमस्ते! मैं आपका AI सहायक हूं। मैं अपलोड किए गए दस्तावेजों की जानकारी से आपकी मदद कर सकता हूं। मैं आपकी कैसे सहायता कर सकता हूं?",
-                placeholder: "यहां अपना प्रश्न पूछें",
-                suggestionsLabel: "त्वरित सुझाव:",
-                connectionOnline: "ऑनलाइन • मदद के लिए तैयार",
-                connectionOffline: "ऑफलाइन • पुनः कनेक्ट हो रहा है...",
-                clearChat: "चैट साफ़ करें",
-                newSession: "नया सत्र",
-                systemNotReady: "सिस्टम तैयार नहीं है। कृपया जांच लें कि दस्तावेज़ लोड हैं और Ollama चल रहा है।",
-                errorProcessing: "आपके अनुरोध को प्रसंस्करण करने में एक त्रुटि आई। कृपया पुनः प्रयास करें।",
-                waitMessage: "कृपया अगला संदेश भेजने से पहले थोड़ा इंतज़ार करें।",
-                noResponse: "मुझे दस्तावेजों में प्रासंगिक जानकारी नहीं मिली। कृपया अपलोड की गई सामग्री से संबंधित प्रश्न पूछें या अपने प्रश्न को दूसरे तरीके से पूछने का प्रयास करें।"
-            },
-            mr: {
-                name: 'मराठी',
-                welcomeMessage: "नमस्कार! मी तुमचा AI सहाय्यक आहे। मी अपलोड केलेल्या दस्तावेजांमधील माहितीसह तुम्हाला मदत करू शकतो. मी तुमची कशी मदत करू शकतो?",
-                placeholder: "इथे तुमचा प्रश्न विचारा",
-                suggestionsLabel: "त्वरित सूचना:",
-                connectionOnline: "ऑनलाइन • मदतीसाठी तयार",
-                connectionOffline: "ऑफलाइन • पुन्हा कनेक्ट होत आहे...",
-                clearChat: "चॅट साफ करा",
-                newSession: "नवीन सत्र",
-                systemNotReady: "सिस्टीम तयार नाही. कृपया तपासून पहा की दस्तावेज लोड झाले आहेत आणि Ollama चालू आहे.",
-                errorProcessing: "तुमची विनंती प्रक्रिया करतांना एक त्रुटी आली. कृपया पुन्हा प्रयत्न करा.",
-                waitMessage: "कृपया दुसरा संदेश पाठवण्यापूर्वी थोडा वेळ थांबा.",
-                noResponse: "मला दस्तावेजांमध्ये संबंधित माहिती आढळली नाही. कृपया अपलोड केलेल्या सामग्रीशी संबंधित प्रश्न विचारा किंवा तुमचा प्रश्न वेगळ्या प्रकारे विचारण्याचा प्रयत्न करा."
-            }
-        };
-
-        // Configuration
-        const CONFIG = {
-            API_BASE_URL: 'http://localhost:8000',
-            SESSION_ID: generateSessionId(),
-            MAX_RETRIES: 2,
-            RETRY_DELAY: 1000,
-            CONNECTION_CHECK_INTERVAL: 30000,
-            CURRENT_LANGUAGE: 'en'
-        };
-
-        // DOM Elements
-        const elements = {
-            chatBubble: document.getElementById('chatBubble'),
-            chatWindow: document.getElementById('chatWindow'),
-            closeChat: document.getElementById('closeChat'),
-            chatMessages: document.getElementById('chatMessages'),
-            messageInput: document.getElementById('messageInput'),
-            sendBtn: document.getElementById('sendBtn'),
-            chatForm: document.getElementById('chatForm'),
-            typingIndicator: document.getElementById('typingIndicator'),
-            notificationBadge: document.getElementById('notificationBadge'),
-            clearChatBtn: document.getElementById('clearChat'),
-            newSessionBtn: document.getElementById('newSession'),
-            connectionStatus: document.getElementById('connectionStatus'),
-            connectionIndicator: document.getElementById('connectionIndicator'),
-            suggestionButtons: document.getElementById('suggestionButtons'),
-            suggestionsLabel: document.getElementById('suggestionsLabel'),
-            languageSelect: document.getElementById('languageSelect')
-        };
-
-        // State
-        let isWindowOpen = false;
-        let isTyping = false;
-        let messageCount = 0;
-        let isConnected = false;
-        let isSending = false;
-        let connectionCheckInterval;
-
-        // Utility Functions
-        function generateSessionId() {
-            return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        }
-
-        function getCurrentTime() {
-            return new Date().toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: true 
-            });
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function updateConnectionStatus(connected) {
-            isConnected = connected;
-            elements.connectionIndicator.className = `connection-status ${connected ? 'connected' : ''}`;
-            
-            const langConfig = LANGUAGE_CONFIG[CONFIG.CURRENT_LANGUAGE];
-            elements.connectionStatus.textContent = connected ? langConfig.connectionOnline : langConfig.connectionOffline;
-            
-            updateSendButtonState();
-        }
-
-        function updateSendButtonState() {
-            const hasText = elements.messageInput.value.trim().length > 0;
-            elements.sendBtn.disabled = !isConnected || isSending || !hasText;
-        }
-
-        // Language Functions
-        function updateLanguage(langCode) {
-            CONFIG.CURRENT_LANGUAGE = langCode;
-            const langConfig = LANGUAGE_CONFIG[langCode];
-            
-            // Update UI elements
-            elements.messageInput.placeholder = langConfig.placeholder;
-            elements.suggestionsLabel.textContent = langConfig.suggestionsLabel;
-            elements.clearChatBtn.textContent = langConfig.clearChat;
-            elements.newSessionBtn.textContent = langConfig.newSession;
-            
-            // Update connection status
-            updateConnectionStatus(isConnected);
-            
-            // Update suggestion buttons
-            updateSuggestionButtons();
-            
-            // Add language change message only if chat is open and has messages
-            if (isWindowOpen && elements.chatMessages.querySelectorAll('.message').length > 0) {
-                addLanguageChangeMessage(langConfig.name);
-            }
-            
-            // Save language preference
-            try {
-                localStorage.setItem('chatbot_language', langCode);
-            } catch (e) {
-                console.warn('Could not save language preference:', e);
-            }
-        }
-
-        function updateSuggestionButtons() {
-            const langCode = CONFIG.CURRENT_LANGUAGE;
-            const buttons = elements.suggestionButtons.querySelectorAll('.suggestion-btn');
-            
-            buttons.forEach(btn => {
-                const text = btn.getAttribute(`data-${langCode}`);
-                if (text) {
-                    btn.textContent = text;
-                }
-            });
-        }
-
-        function addLanguageChangeMessage(languageName) {
-            const message = `Language switched to ${languageName}`;
-            
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'status-indicator info';
-            messageDiv.textContent = message;
-            
-            elements.chatMessages.insertBefore(messageDiv, elements.typingIndicator);
-            scrollToBottom();
-            
-            setTimeout(() => {
-                if (messageDiv.parentNode) {
-                    messageDiv.remove();
-                }
-            }, 3000);
-        }
-
-        // UI Functions
-        function toggleChatWindow() {
-            isWindowOpen = !isWindowOpen;
-            elements.chatWindow.style.display = isWindowOpen ? 'flex' : 'none';
-            
-            if (isWindowOpen) {
-                elements.messageInput.focus();
-                elements.notificationBadge.style.display = 'none';
-                messageCount = 0;
-                
-                // Initialize with welcome message if no messages exist
-                const existingMessages = elements.chatMessages.querySelectorAll('.message');
-                if (existingMessages.length === 0) {
-                    addWelcomeMessage();
-                }
-                
-                // Start connection check
-                checkConnection();
-            }
-        }
-
-        function addWelcomeMessage() {
-            const langConfig = LANGUAGE_CONFIG[CONFIG.CURRENT_LANGUAGE];
-            const welcomeDiv = document.createElement('div');
-            welcomeDiv.className = 'message bot';
-            welcomeDiv.innerHTML = `
-                <div class="message-content">
-                    ${langConfig.welcomeMessage}
-                    <div class="message-time">${getCurrentTime()}</div>
-                </div>
-            `;
-            
-            elements.chatMessages.insertBefore(welcomeDiv, elements.typingIndicator);
-            scrollToBottom();
-        }
-
-        function addMessage(content, isUser = false, timestamp = null) {
-            try {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
-                
-                const time = timestamp || getCurrentTime();
-                
-                messageDiv.innerHTML = `
-                    <div class="message-content">
-                        ${isUser ? escapeHtml(content) : content}
-                        <div class="message-time">${time}</div>
-                    </div>
-                `;
-                
-                elements.chatMessages.insertBefore(messageDiv, elements.typingIndicator);
-                scrollToBottom();
-                
-                if (!isUser && !isWindowOpen) {
-                    messageCount++;
-                    elements.notificationBadge.textContent = messageCount;
-                    elements.notificationBadge.style.display = 'flex';
-                }
-            } catch (error) {
-                console.error('Error adding message:', error);
-            }
-        }
-
-        function scrollToBottom() {
-            setTimeout(() => {
-                elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
-            }, 100);
-        }
-
-        function showTyping() {
-            isTyping = true;
-            elements.typingIndicator.style.display = 'block';
-            scrollToBottom();
-        }
-
-        function hideTyping() {
-            isTyping = false;
-            elements.typingIndicator.style.display = 'none';
-        }
-
-        function showStatus(message, type = 'error') {
-            try {
-                const statusDiv = document.createElement('div');
-                statusDiv.className = `status-indicator ${type}`;
-                statusDiv.textContent = message;
-                
-                elements.chatMessages.insertBefore(statusDiv, elements.typingIndicator);
-                scrollToBottom();
-                
-                setTimeout(() => {
-                    if (statusDiv.parentNode) {
-                        statusDiv.remove();
-                    }
-                }, 5000);
-            } catch (error) {
-                console.error('Error showing status:', error);
-            }
-        }
-
-        // API Functions
-        async function sendMessage(message, retries = 0) {
-            if (!message.trim() || isSending) return;
-
-            isSending = true;
-            
-            try {
-                addMessage(message, true);
-                elements.messageInput.value = '';
-                showTyping();
-                updateSendButtonState();
-
-                const requestBody = {
-                    input_text: message,
-                    model: 'llama3.1:8b',
-                    enhanced_mode: true,
-                    session_id: CONFIG.SESSION_ID,
-                    language: CONFIG.CURRENT_LANGUAGE
-                };
-
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
-
-                const response = await fetch(`${CONFIG.API_BASE_URL}/query/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(requestBody),
-                    signal: controller.signal
-                });
-
-                clearTimeout(timeoutId);
-                hideTyping();
-
-                if (!response.ok) {
-                    let errorMessage;
-                    try {
-                        const errorData = await response.json();
-                        errorMessage = errorData.reply || errorData.error || `Server error: ${response.status}`;
-                    } catch {
-                        errorMessage = `Server error: ${response.status} ${response.statusText}`;
-                    }
-                    throw new Error(errorMessage);
-                }
-
-                const data = await response.json();
-                updateConnectionStatus(true);
-                
-                if (data.reply) {
-                    addMessage(data.reply, false);
-                } else {
-                    const langConfig = LANGUAGE_CONFIG[CONFIG.CURRENT_LANGUAGE];
-                    addMessage(langConfig.noResponse, false);
-                }
-                
-            } catch (error) {
-                hideTyping();
-                console.error('Send message error:', error);
-                
-                const langConfig = LANGUAGE_CONFIG[CONFIG.CURRENT_LANGUAGE];
-                
-                if (retries < CONFIG.MAX_RETRIES && (error.name === 'AbortError' || error.message.includes('fetch'))) {
-                    showStatus(`Retrying... (${retries + 1}/${CONFIG.MAX_RETRIES})`, 'info');
-                    setTimeout(() => {
-                        sendMessage(message, retries + 1);
-                    }, CONFIG.RETRY_DELAY);
-                    return;
-                } else {
-                    updateConnectionStatus(false);
-                    showStatus(error.message, 'error');
-                    addMessage(langConfig.errorProcessing, false);
-                }
-            } finally {
-                isSending = false;
-                updateSendButtonState();
-                elements.messageInput.focus();
-            }
-        }
-
-        async function clearChat() {
-            try {
-                const messages = elements.chatMessages.querySelectorAll('.message, .status-indicator');
-                messages.forEach(msg => msg.remove());
-                
-                addWelcomeMessage();
-                showStatus('Chat cleared successfully', 'success');
-            } catch (error) {
-                console.error('Clear chat error:', error);
-                showStatus('Failed to clear chat', 'error');
-            }
-        }
-
-        async function startNewSession() {
-            try {
-                CONFIG.SESSION_ID = generateSessionId();
-                console.log('New session started:', CONFIG.SESSION_ID);
-                
-                const messages = elements.chatMessages.querySelectorAll('.message, .status-indicator');
-                messages.forEach(msg => msg.remove());
-                
-                addWelcomeMessage();
-                showStatus('New session started', 'success');
-            } catch (error) {
-                console.error('New session error:', error);
-                showStatus('Failed to start new session', 'error');
-            }
-        }
-
-        async function checkConnection() {
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-                const response = await fetch(`${CONFIG.API_BASE_URL}/health/`, {
-                    method: 'GET',
-                    signal: controller.signal
-                });
-                
-                clearTimeout(timeoutId);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const connected = data.ollama_status?.connected && data.rag_status?.initialized;
-                    updateConnectionStatus(connected);
-                    return connected;
-                } else {
-                    updateConnectionStatus(false);
-                    return false;
-                }
-            } catch (error) {
-                console.error('Connection check failed:', error);
-                updateConnectionStatus(false);
-                return false;
-            }
-        }
-
-        // Event Listeners
-        elements.chatBubble.addEventListener('click', toggleChatWindow);
-        elements.closeChat.addEventListener('click', toggleChatWindow);
+        // Auto-focus on input field
+        document.getElementById('user_input').focus();
         
-        elements.chatForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const message = elements.messageInput.value.trim();
-            if (message && !isSending) {
-                await sendMessage(message);
+        // Handle form submission with Enter key
+        document.getElementById('user_input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('chat-form').submit();
             }
         });
+        
+        // Auto-scroll to bottom of messages
+        const messagesContainer = document.querySelector('.chat-messages');
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-        elements.messageInput.addEventListener('input', updateSendButtonState);
-        elements.clearChatBtn.addEventListener('click', clearChat);
-        elements.newSessionBtn.addEventListener('click', startNewSession);
-
-        // Language selector event listener - FIXED
-        elements.languageSelect.addEventListener('change', (e) => {
-            const selectedLang = e.target.value;
-            console.log('Language changed to:', selectedLang);
-            updateLanguage(selectedLang);
+        // Auto-clear input after suggestion click
+        document.querySelectorAll('.suggestion-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                setTimeout(() => {
+                    document.getElementById('user_input').value = '';
+                }, 100);
+            });
         });
-
-        // Suggestion buttons
-        elements.suggestionButtons.addEventListener('click', async (e) => {
-            if (e.target.classList.contains('suggestion-btn')) {
-                const langCode = CONFIG.CURRENT_LANGUAGE;
-                const suggestion = e.target.getAttribute(`data-${langCode}`) || e.target.textContent;
-                elements.messageInput.value = suggestion;
-                updateSendButtonState();
-                if (!isSending && isConnected) {
-                    await sendMessage(suggestion);
-                }
-            }
-        });
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('ChatBot UI initialized');
-            
-            // Load saved language preference
-            try {
-                const savedLanguage = localStorage.getItem('chatbot_language');
-                if (savedLanguage && LANGUAGE_CONFIG[savedLanguage]) {
-                    CONFIG.CURRENT_LANGUAGE = savedLanguage;
-                    elements.languageSelect.value = savedLanguage;
-                }
-            } catch (e) {
-                console.warn('Could not load language preference:', e);
-            }
-            
-            // Apply current language
-            updateLanguage(CONFIG.CURRENT_LANGUAGE);
-            
-            // Set up periodic connection checks.
-            connectionCheckInterval = setInterval(checkConnection, CONFIG.CONNECTION_CHECK_INTERVAL);
-            
-            // Initial connection check.
-            setTimeout(checkConnection, 1000);
-        });
-
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', () => {
-            if (connectionCheckInterval) {
-                clearInterval(connectionCheckInterval);
-            }
-        });
-
-        console.log('ChatBot script loaded successfully');
     </script>
 </body>
 </html>

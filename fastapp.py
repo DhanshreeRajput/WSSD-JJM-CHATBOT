@@ -4,43 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 from typing import Optional
 import time
-import json
-import hashlib
 import os
 import logging
-import glob
-from contextlib import asynccontextmanager
-import asyncio
-import traceback
 import re
-
-# Import with error handling
-try:
-    from rag_services import (
-        build_rag_chain_with_model_choice, 
-        process_scheme_query_with_retry, 
-        detect_language,
-        check_ollama_connection,
-        clear_query_cache
-    )
-    from config import (
-        OLLAMA_BASE_URL, 
-        OLLAMA_MODEL, 
-        UPLOAD_DIR, 
-        RATE_LIMIT_SECONDS,
-        print_config
-    )
-except ImportError as e:
-    print(f"⚠️ Error importing modules: {e}")
-    print("Please ensure rag_services.py and config.py are in the same directory as this file.")
-    # Set default values as fallback
-    OLLAMA_BASE_URL = "http://localhost:11434"
-    OLLAMA_MODEL = "llama3.1:8b"
-    UPLOAD_DIR = "uploaded_files"
-    RATE_LIMIT_SECONDS = 2
-    
-    def print_config():
-        print("Using fallback configuration due to import error")
+from contextlib import asynccontextmanager
 
 # Setup logging
 logging.basicConfig(
@@ -49,12 +16,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Configuration constants
+RATE_LIMIT_SECONDS = 2
+SYSTEM_STATUS = {
+    "startup_time": time.time(),
+    "total_queries": 0,
+    "successful_queries": 0,
+    "failed_queries": 0,
+    "last_error": None,
+    "supported_languages": ["en", "mr"]
+}
+
 class QueryRequest(BaseModel):
     input_text: str
-    model: str = "llama3.1:8b"
-    enhanced_mode: bool = True
     session_id: Optional[str] = None
-    language: str = "en"  # Added language parameter
+    language: str = "en"
 
     @field_validator('input_text')
     @classmethod
@@ -68,23 +44,60 @@ class QueryRequest(BaseModel):
     @field_validator('language')
     @classmethod
     def validate_language(cls, v):
-        supported_languages = ['en', 'hi', 'mr']
+        supported_languages = ['en', 'mr']
         if v not in supported_languages:
             raise ValueError(f'Language must be one of: {supported_languages}')
         return v
 
-# Global variables - now with language support
-CURRENT_RAG_CHAINS = {}  # Store RAG chains per language
-CURRENT_MODEL_KEY = None
+# Global variables
 CHAT_HISTORY = {}
 RATE_LIMIT_TRACKER = {}
-SYSTEM_STATUS = {
-    "startup_time": time.time(),
-    "total_queries": 0,
-    "successful_queries": 0,
-    "failed_queries": 0,
-    "last_error": None,
-    "supported_languages": ["en", "hi", "mr"]
+USER_SESSION_STATE = {}
+
+# Exact Maha-Jal Samadhan Knowledge Base from your PDF images
+MAHA_JAL_KNOWLEDGE_BASE = {
+    "en": {
+        "welcome_message": "Welcome to the Maha-Jal Samadhan Public Grievance Redressal System.",
+        "initial_question": "Would you like to register a Grievance on the Maha-Jal Samadhan Public Grievance Redressal System?",
+        "check_existing_question": "Has a Grievance already been registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
+        "options": {"yes": "YES", "no": "NO"},
+        "yes_response": {
+            "intro": "You can register your Grievance on the Maha-Jal Samadhan Public Grievance Redressal System through two methods:",
+            "method1": {
+                "title": "1. Registering a Grievance via the Maha-Jal Samadhan Website",
+                "description": "You can register your Grievance by clicking the link below and visiting the official website:",
+                "link": "Link: https://mahajalsamadhan.in/log-grievance"
+            },
+            "method2": {
+                "title": "2. Registering a Grievance via the Maha-Jal Samadhan Mobile App", 
+                "description": "You can download the mobile application using the link below and submit your Grievance through the app:",
+                "link": "Download Link: https://play.google.com/store/apps/details?id=in.mahajalsamadhan.user&pli=1"
+            }
+        },
+        "no_response": "Thank you for using the Maha-Jal Samadhan Public Grievance Redressal System.",
+        "help_text": "Please type 'YES' or 'NO' to proceed with your query."
+    },
+    "mr": {
+        "welcome_message": "नमस्कार, महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये आपले स्वागत आहे.",
+        "initial_question": "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये आपण तक्रार नोंदवू इच्छिता का?",
+        "check_existing_question": "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये नोंदविण्यात आलेली तक्रार आहे का?",
+        "options": {"yes": "होय", "no": "नाही"},
+        "yes_response": {
+            "intro": "आपण 'महा-जल समाधान' सार्वजनिक तक्रार निवारण प्रणालीमध्ये आपली तक्रार दोन पद्धतींनी नोंदवू शकता:",
+            "method1": {
+                "title": "१. महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये वेबसाईटद्वारे तक्रार नोंदणीसाठी आपण खालील लिंकवर क्लिक करून वेबसाईटवर तक्रार नोंदवू शकता:",
+                "description": "लिंक -",
+                "link": "https://mahajalsamadhan.in/log-grievance"
+            },
+            "method2": {
+                "title": "२. महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये मोबाईल अ‍ॅपद्वारे तक्रार नोंदणी",
+                "description": "आपण खालील लिंकद्वारे मोबाइल अ‍ॅप डाउनलोड करून तक्रार नोंदवू शकता:",
+                "link": "https://play.google.com/store/apps/details?id=in.mahajalsamadhan.user&pli=1"
+            }
+        },
+        "no_response": "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीचा वापर केल्याबद्दल आपले धन्यवाद.",
+        "help_text": "कृपया 'होय' किंवा 'नाही' टाइप करून आपल्या प्रश्नासह पुढे जा."
+    }
 }
 
 def generate_session_id() -> str:
@@ -93,115 +106,6 @@ def generate_session_id() -> str:
     adjectives = ["sharp", "sleepy", "fluffy", "dazzling", "crazy", "bold", "happy", "silly"]
     animals = ["lion", "swan", "tiger", "elephant", "zebra", "giraffe", "panda", "koala"]
     return f"{random.choice(adjectives)}_{random.choice(animals)}_{os.urandom(2).hex()}_{int(time.time())}"
-
-def generate_model_key(model: str, pdf_name: str, txt_name: str, language: str = "en") -> str:
-    """Generate a unique key for the model configuration with language"""
-    key_string = f"{model}_{pdf_name}_{txt_name}_{language}"
-    return hashlib.md5(key_string.encode()).hexdigest()
-
-def setup_upload_directory():
-    """Create upload directory if it doesn't exist"""
-    try:
-        if not os.path.exists(UPLOAD_DIR):
-            os.makedirs(UPLOAD_DIR)
-            logger.info(f"Created upload directory: {UPLOAD_DIR}")
-        return UPLOAD_DIR
-    except Exception as e:
-        logger.error(f"Failed to create upload directory: {e}")
-        return None
-
-def load_backend_files():
-    """Load files from backend directory and initialize RAG systems for all languages"""
-    global CURRENT_RAG_CHAINS, CURRENT_MODEL_KEY
-    
-    try:
-        upload_dir = setup_upload_directory()
-        if not upload_dir:
-            return None, "Failed to setup upload directory"
-        
-        # Look for PDF and TXT files
-        pdf_files = glob.glob(os.path.join(UPLOAD_DIR, "*.pdf"))
-        txt_files = glob.glob(os.path.join(UPLOAD_DIR, "*.txt"))
-        
-        logger.info(f"Found {len(pdf_files)} PDF files and {len(txt_files)} TXT files in {os.path.abspath(UPLOAD_DIR)}")
-        
-        if not (pdf_files or txt_files):
-            return None, f"No files found in {os.path.abspath(UPLOAD_DIR)}. Please add PDF or TXT files to this directory."
-            
-        # Check Ollama connection first
-        try:
-            is_connected, connection_msg = check_ollama_connection(OLLAMA_BASE_URL, OLLAMA_MODEL)
-            if not is_connected:
-                return None, f"Ollama connection failed: {connection_msg}"
-        except Exception as e:
-            return None, f"Failed to check Ollama connection: {str(e)}"
-        
-        # Use the most recent files if multiple exist
-        pdf_file = max(pdf_files, key=os.path.getmtime) if pdf_files else None
-        txt_file = max(txt_files, key=os.path.getmtime) if txt_files else None
-        
-        pdf_name = os.path.basename(pdf_file) if pdf_file else "None"
-        txt_name = os.path.basename(txt_file) if txt_file else "None"
-        
-        logger.info(f"Using files: PDF={pdf_name}, TXT={txt_name}")
-        
-        # Create file objects that mimic uploaded files
-        class MockUploadedFile:
-            def __init__(self, file_path):
-                self.file_path = file_path
-                
-            def getvalue(self):
-                with open(self.file_path, 'rb') as f:
-                    return f.read()
-        
-        pdf_file_obj = MockUploadedFile(pdf_file) if pdf_file else None
-        txt_file_obj = MockUploadedFile(txt_file) if txt_file else None
-        
-        # Build RAG chains for all supported languages
-        supported_languages = SYSTEM_STATUS["supported_languages"]
-        CURRENT_RAG_CHAINS = {}
-        
-        for language in supported_languages:
-            try:
-                logger.info(f"Building RAG chain for language: {language}")
-                rag_chain = build_rag_chain_with_model_choice(
-                    pdf_file_obj,
-                    txt_file_obj,
-                    OLLAMA_BASE_URL,
-                    model_choice=OLLAMA_MODEL,
-                    enhanced_mode=True,
-                    target_language=language
-                )
-                CURRENT_RAG_CHAINS[language] = rag_chain
-                logger.info(f"RAG chain built successfully for {language}")
-            except Exception as e:
-                logger.error(f"Failed to build RAG chain for {language}: {e}")
-                return None, f"Failed to build RAG chain for {language}: {str(e)}"
-        
-        # Generate model key
-        model_key = generate_model_key(OLLAMA_MODEL, pdf_name, txt_name, "multi")
-        CURRENT_MODEL_KEY = model_key
-        
-        logger.info("All RAG chains built successfully")
-        return model_key, f"RAG system initialized with {pdf_name}, {txt_name} for languages: {', '.join(supported_languages)}"
-        
-    except Exception as e:
-        logger.error(f"Failed to load backend files: {e}")
-        logger.error(traceback.format_exc())
-        return None, str(e)
-
-def check_rate_limit(session_id: str) -> tuple[bool, str]:
-    """Simple rate limiting - configurable cooldown per session"""
-    current_time = time.time()
-    last_request = RATE_LIMIT_TRACKER.get(session_id, 0)
-    
-    time_since_last = current_time - last_request
-    if time_since_last < RATE_LIMIT_SECONDS:
-        remaining = RATE_LIMIT_SECONDS - time_since_last
-        return False, f"Please wait {remaining:.1f} seconds before sending another message"
-    
-    RATE_LIMIT_TRACKER[session_id] = current_time
-    return True, "OK"
 
 def add_to_chat_history(session_id: str, user_msg: str, bot_msg: str, language: str = "en"):
     """Add message to chat history with language support"""
@@ -218,150 +122,184 @@ def add_to_chat_history(session_id: str, user_msg: str, bot_msg: str, language: 
             "created_at": time.time()
         })
         
-        # Keep only last 50 messages per session
         CHAT_HISTORY[session_id] = CHAT_HISTORY[session_id][:50]
-        
     except Exception as e:
         logger.error(f"Failed to add to chat history: {e}")
 
-def validate_input(text: str, language: str = "en") -> tuple[bool, str]:
-    """Validate user input with language awareness"""
-    try:
-        text = text.strip()
-        
-        if not text:
-            return False, "Empty message"
-        
-        if len(text) > 500:
-            return False, "Message too long (max 500 characters)"
-        
-        # Check for supported languages
-        supported_languages = {"en", "hi", "mr"}
-        if language not in supported_languages:
-            return False, f"Language '{language}' not supported. Use: {', '.join(supported_languages)}"
-        
-        return True, "Valid"
-        
-    except Exception as e:
-        logger.error(f"Input validation error: {e}")
-        return False, "Validation error"
-
 def detect_greeting(text: str) -> tuple[bool, str]:
-    """Detect greeting intent and return a normalized key (e.g., 'good_morning')."""
+    """Detect greeting intent and return a normalized key"""
     try:
         t = text.strip().lower()
         t = re.sub(r"[!.,🙂🙏✨⭐️]+", "", t)
+        
         patterns = [
-            (r"\bgood\s*morning\b|\bसुप्रभात\b|\bशुभ\s*सकाळ\b", "good_morning"),
+            (r"\bgood\s*morning\b|\bशुभ\s*सकाळ\b", "good_morning"),
             (r"\bgood\s*afternoon\b|\bशुभ\s*दुपार\b", "good_afternoon"),
-            (r"\bgood\s*evening\b|\bशुभ\s*संध्या\b|\bशुभ\s*संध्याकाळ\b", "good_evening"),
+            (r"\bgood\s*evening\b|\bशुभ\s*संध्याकाळ\b", "good_evening"),
             (r"\bhello\b|\bhey+\b|\bhii+\b|\bhi\b|\bनमस्ते\b|\bनमस्कार\b|\bहॅलो\b|\bहेलो\b|\bहाय\b", "hello"),
-            (r"\bgood\s*night\b", "good_night"),
+            (r"\bgood\s*night\b|\bशुभ\s*रात्री\b", "good_night"),
         ]
+        
         for regex, key in patterns:
             if re.search(regex, t):
                 return True, key
+        
         return False, ""
     except Exception:
         return False, ""
 
 def greeting_reply(language: str, key: str) -> str:
-    """Return a specific greeting reply per detected key and language."""
+    """Return a specific greeting reply per detected key and language"""
     replies = {
         'en': {
-            'good_morning': "Good Morning! How may I help you today?",
-            'good_afternoon': "Good Afternoon! How may I help you today?",
-            'good_evening': "Good Evening! How may I help you today?",
-            'good_night': "Good Night! Before you go, is there anything I can help with?",
-            'hello': "Hello! How may I help you today?",
-        },
-        'hi': {
-            'good_morning': "सुप्रभात! मैं आज आपकी किस प्रकार सहायता कर सकता/सकती हूँ?",
-            'good_afternoon': "शुभ दोपहर! मैं आपकी कैसे सहायता कर सकता/सकती हूँ?",
-            'good_evening': "शुभ संध्या! मैं आपकी किस प्रकार मदद कर सकता/सकती हूँ?",
-            'good_night': "शुभ रात्रि! जाने से पहले क्या मैं किसी तरह मदद कर सकता/सकती हूँ?",
-            'hello': "नमस्ते! मैं आज आपकी किस प्रकार सहायता कर सकता/सकती हूँ?",
+            'good_morning': "Good Morning! " + MAHA_JAL_KNOWLEDGE_BASE["en"]["welcome_message"],
+            'good_afternoon': "Good Afternoon! " + MAHA_JAL_KNOWLEDGE_BASE["en"]["welcome_message"],
+            'good_evening': "Good Evening! " + MAHA_JAL_KNOWLEDGE_BASE["en"]["welcome_message"],
+            'good_night': "Good Night! " + MAHA_JAL_KNOWLEDGE_BASE["en"]["welcome_message"],
+            'hello': "Hello! " + MAHA_JAL_KNOWLEDGE_BASE["en"]["welcome_message"],
         },
         'mr': {
-            'good_morning': "शुभ सकाळ! आज मी तुम्हाला कशात मदत करू शकतो/शकते?",
-            'good_afternoon': "शुभ दुपार! मी कशी मदत करू शकतो/शकते?",
-            'good_evening': "शुभ संध्याकाळ! मी कशात मदत करू शकतो/शकते?",
-            'good_night': "शुभ रात्री! जाण्यापूर्वी मी काही मदत करू शकतो/शकते का?",
-            'hello': "नमस्कार! आज मी तुम्हाला कशात मदत करू शकतो/शकते?",
+            'good_morning': "शुभ सकाळ! " + MAHA_JAL_KNOWLEDGE_BASE["mr"]["welcome_message"],
+            'good_afternoon': "शुभ दुपार! " + MAHA_JAL_KNOWLEDGE_BASE["mr"]["welcome_message"],
+            'good_evening': "शुभ संध्याकाळ! " + MAHA_JAL_KNOWLEDGE_BASE["mr"]["welcome_message"],
+            'good_night': "शुभ रात्री! " + MAHA_JAL_KNOWLEDGE_BASE["mr"]["welcome_message"],
+            'hello': MAHA_JAL_KNOWLEDGE_BASE["mr"]["welcome_message"],
         }
     }
+    
     return replies.get(language, replies['en']).get(key, replies.get(language, replies['en'])['hello'])
+
+def detect_yes_no_response(text: str, language: str) -> str:
+    """Detect yes/no responses in both languages"""
+    text = text.strip().lower()
+    
+    # English patterns
+    yes_patterns_en = [r'\byes\b', r'\by\b', r'\byeah\b', r'\byep\b']
+    no_patterns_en = [r'\bno\b', r'\bn\b', r'\bnope\b']
+    
+    # Marathi patterns
+    yes_patterns_mr = [r'\bहोय\b', r'\bहो\b']
+    no_patterns_mr = [r'\bनाही\b', r'\bना\b']
+    
+    # Check for yes patterns
+    for pattern in yes_patterns_en + yes_patterns_mr:
+        if re.search(pattern, text):
+            return "yes"
+    
+    # Check for no patterns
+    for pattern in no_patterns_en + no_patterns_mr:
+        if re.search(pattern, text):
+            return "no"
+    
+    return "unknown"
+
+def get_initial_response(language: str) -> str:
+    """Get the initial welcome message and question"""
+    kb = MAHA_JAL_KNOWLEDGE_BASE[language]
+    if language == "mr":
+        return f"{kb['welcome_message']}\n\nप्रश्न क्र. १: {kb['initial_question']}\n\nउत्तर १ - \"{kb['options']['yes']}\"\nउत्तर २ - \"{kb['options']['no']}\""
+    else:
+        return f"{kb['welcome_message']}\n\nQuestion 1:\n{kb['initial_question']}\n\nAnswer 1: \"{kb['options']['yes']}\"\nAnswer 2: \"{kb['options']['no']}\""
+
+def get_yes_response(language: str) -> str:
+    """Get the response for 'YES' answer"""
+    kb = MAHA_JAL_KNOWLEDGE_BASE[language]
+    yes_resp = kb['yes_response']
+    
+    if language == "mr":
+        response = f"उत्तर १ - \"{kb['options']['yes']}\"\n\n{yes_resp['intro']}\n\n"
+        response += f"{yes_resp['method1']['title']}\n{yes_resp['method1']['description']}\n{yes_resp['method1']['link']}\n\n"
+        response += f"{yes_resp['method2']['title']}\n{yes_resp['method2']['description']}\n{yes_resp['method2']['link']}"
+    else:
+        response = f"Answer 1: \"{kb['options']['yes']}\"\n\n{yes_resp['intro']}\n\n"
+        response += f"{yes_resp['method1']['title']}\n{yes_resp['method1']['description']}\n{yes_resp['method1']['link']}\n\n"
+        response += f"{yes_resp['method2']['title']}\n{yes_resp['method2']['description']}\n{yes_resp['method2']['link']}"
+    
+    return response
+
+def get_no_response(language: str) -> str:
+    """Get the thank you response for 'no' answer"""
+    kb = MAHA_JAL_KNOWLEDGE_BASE[language]
+    if language == "mr":
+        return f"उत्तर २ - \"{kb['options']['no']}\"\n\n{kb['no_response']}"
+    else:
+        return f"Answer 2: \"{kb['options']['no']}\"\n\n{kb['no_response']}"
+
+def process_maha_jal_query(input_text: str, session_id: str, language: str) -> str:
+    """Process Maha-Jal Samadhan specific queries"""
+    
+    # Initialize session state if not exists
+    if session_id not in USER_SESSION_STATE:
+        USER_SESSION_STATE[session_id] = {"stage": "initial", "language": language}
+    
+    session_state = USER_SESSION_STATE[session_id]
+    response_type = detect_yes_no_response(input_text, language)
+    
+    # Handle initial stage or direct questions
+    if session_state["stage"] == "initial" or any(keyword in input_text.lower() for keyword in 
+        ["register", "grievance", "complaint", "तक्रार", "नोंदवू", "शिकायत"]):
+        
+        if response_type == "yes":
+            session_state["stage"] = "registration_info"
+            return get_yes_response(language)
+        elif response_type == "no":
+            session_state["stage"] = "completed"
+            return get_no_response(language)
+        else:
+            # First time or unclear response
+            session_state["stage"] = "awaiting_response"
+            return get_initial_response(language)
+    
+    # Handle awaiting response stage
+    elif session_state["stage"] == "awaiting_response":
+        if response_type == "yes":
+            session_state["stage"] = "registration_info"
+            return get_yes_response(language)
+        elif response_type == "no":
+            session_state["stage"] = "completed"
+            return get_no_response(language)
+        else:
+            return MAHA_JAL_KNOWLEDGE_BASE[language]['help_text']
+    
+    # Default response
+    else:
+        return get_initial_response(language)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     print("=" * 60)
-    print("🚀 STARTING WSSD AI CHATBOT BACKEND (MULTILINGUAL)")
+    print("🚀 STARTING MAHA-JAL SAMADHAN CHATBOT BACKEND")
     print("=" * 60)
     
-    # Print configuration
-    try:
-        print_config()
-    except:
-        print("Configuration printing failed, using defaults")
+    print("🌐 Languages supported: English, Marathi")
+    print("🎯 System: Maha-Jal Samadhan Public Grievance Redressal")
+    print("💡 Mode: Hardcoded Q&A (No RAG/Model required)")
     
-    try:
-        # Check Ollama connection
-        print("🔍 Checking Ollama connection...")
-        try:
-            is_connected, connection_msg = check_ollama_connection(OLLAMA_BASE_URL, OLLAMA_MODEL)
-            if not is_connected:
-                print(f"❌ {connection_msg}")
-                print(f"💡 Please run: ollama run {OLLAMA_MODEL}")
-            else:
-                print(f"✅ {connection_msg}")
-        except Exception as e:
-            print(f"❌ Ollama check failed: {e}")
-        
-        # Initialize RAG system
-        print("🔧 Initializing multilingual RAG system...")
-        try:
-            model_key, message = load_backend_files()
-            if model_key:
-                print(f"✅ {message}")
-                print(f"🔑 Model key: {model_key}")
-                print(f"🌐 Languages supported: {', '.join(SYSTEM_STATUS['supported_languages'])}")
-            else:
-                print(f"❌ Failed to initialize RAG system: {message}")
-                print(f"📁 Please ensure PDF/TXT files exist in: {os.path.abspath(UPLOAD_DIR)}")
-        except Exception as e:
-            print(f"❌ RAG initialization failed: {e}")
-        
-        print("=" * 60)
-        print("🎯 Backend ready! Access the API at:")
-        print("   • Docs: http://localhost:8000/docs")
-        print("   • Health: http://localhost:8000/health/")
-        print("   • Status: http://localhost:8000/status/")
-        print("=" * 60)
-            
-    except Exception as e:
-        print(f"❌ Startup error: {e}")
-        logger.error(traceback.format_exc())
+    print("=" * 60)
+    print("🎯 Backend ready! Access the API at:")
+    print(" • Docs: http://localhost:8000/docs")
+    print(" • Health: http://localhost:8000/health/")
+    print(" • Status: http://localhost:8000/status/")
+    print("=" * 60)
     
     yield
     
     print("🔥 FastAPI application shutting down...")
-    if CURRENT_RAG_CHAINS:
-        print("🧹 Cleaning up RAG chains...")
     print("👋 Goodbye!")
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="WSSD AI ChatBot Backend (Multilingual)", 
-    description="Local Ollama-powered RAG chatbot with multilingual support (English, Hindi, Marathi)",
-    version="1.1.0",
+    title="Maha-Jal Samadhan Chatbot Backend",
+    description="Public Grievance Redressal System Chatbot with bilingual support (English, Marathi)",
+    version="2.0.0",
     lifespan=lifespan
 )
 
-# CORS middleware
+# CORS middleware - IMPORTANT for PHP frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your domain
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -384,47 +322,23 @@ async def preflight_handler(request: Request, full_path: str):
 async def root():
     """Root endpoint with system status"""
     try:
-        try:
-            ollama_connected, ollama_msg = check_ollama_connection(OLLAMA_BASE_URL, OLLAMA_MODEL)
-        except Exception as e:
-            ollama_connected, ollama_msg = False, f"Connection check failed: {str(e)}"
-        
         uptime = time.time() - SYSTEM_STATUS["startup_time"]
-        
         return {
-            "message": "WSSD AI ChatBot Backend is running (Multilingual)",
-            "mode": "local_ollama_multilingual",
-            "version": "1.1.0",
+            "message": "Maha-Jal Samadhan Chatbot Backend is running",
+            "system": "Public Grievance Redressal System",
+            "mode": "Hardcoded Q&A System",
+            "version": "2.0.0",
             "uptime_seconds": round(uptime, 2),
-            "docs": "/docs",
-            "health": "/health/",
-            "status": "/status/",
             "system_status": {
-                "rag_initialized": len(CURRENT_RAG_CHAINS) > 0,
-                "languages_available": list(CURRENT_RAG_CHAINS.keys()),
-                "ollama_connected": ollama_connected,
-                "ollama_message": ollama_msg,
-                "files_found": bool(glob.glob(os.path.join(UPLOAD_DIR, "*.pdf")) or 
-                                  glob.glob(os.path.join(UPLOAD_DIR, "*.txt"))),
-                "upload_directory": os.path.abspath(UPLOAD_DIR),
                 "active_sessions": len(CHAT_HISTORY),
                 "total_queries": SYSTEM_STATUS["total_queries"],
-                "success_rate": round(
-                    (SYSTEM_STATUS["successful_queries"] / max(1, SYSTEM_STATUS["total_queries"])) * 100, 2
-                )
-            },
-            "config": {
-                "ollama_url": OLLAMA_BASE_URL,
-                "model": OLLAMA_MODEL,
-                "upload_dir": UPLOAD_DIR,
-                "rate_limit_seconds": RATE_LIMIT_SECONDS,
                 "supported_languages": SYSTEM_STATUS["supported_languages"]
             }
         }
     except Exception as e:
         logger.error(f"Root endpoint error: {e}")
         return JSONResponse(
-            status_code=500, 
+            status_code=500,
             content={"error": f"System error: {str(e)}"}
         )
 
@@ -443,14 +357,13 @@ async def process_query(request: QueryRequest):
             SYSTEM_STATUS["failed_queries"] += 1
             error_msg = {
                 'en': "Please provide a valid query.",
-                'hi': "कृपया एक वैध प्रश्न प्रदान करें।",
-                'mr': "कृपया एक वैध प्रश्न प्रदान करा।"
+                'mr': "कृपया एक वैध प्रश्न प्रदान करा."
             }
             return JSONResponse(
                 status_code=400,
                 content={"reply": error_msg.get(language, error_msg['en'])}
             )
-
+        
         # Validate language
         if language not in SYSTEM_STATUS["supported_languages"]:
             SYSTEM_STATUS["failed_queries"] += 1
@@ -458,63 +371,40 @@ async def process_query(request: QueryRequest):
                 status_code=400,
                 content={"reply": f"Language '{language}' not supported. Use: {', '.join(SYSTEM_STATUS['supported_languages'])}"}
             )
-
-        # Quick greeting intent handling (mirrors user phrase)
+        
+        # Generate session ID if not provided
+        session_id = request.session_id or generate_session_id()
+        
+        # Check for greeting intent
         is_greet, greet_key = detect_greeting(input_text)
         if is_greet:
             SYSTEM_STATUS["successful_queries"] += 1
-            session_id = request.session_id or "default"
             reply_text = greeting_reply(language, greet_key)
             add_to_chat_history(session_id, input_text, reply_text, language)
-            return {"reply": reply_text, "language": language, "detected_language": language}
-
-        # Check RAG system initialization for the requested language
-        if language not in CURRENT_RAG_CHAINS:
-            SYSTEM_STATUS["failed_queries"] += 1
-            error_msg = {
-                'en': f"System is not ready for {language}. Please check if documents are loaded and Ollama is running.",
-                'hi': f"{language} के लिए सिस्टम तैयार नहीं है। कृपया जांचें कि दस्तावेज़ लोड हैं और Ollama चल रहा है।",
-                'mr': f"{language} साठी सिस्टम तयार नाही. कृपया तपासा की दस्तऐवज लोड केले आहेत आणि Ollama चालू आहे."
+            return {
+                "reply": reply_text,
+                "language": language,
+                "session_id": session_id,
+                "detected_language": language
             }
-            return JSONResponse(
-                status_code=503,
-                content={"reply": error_msg.get(language, error_msg['en'])}
-            )
-
-        # Get the appropriate RAG chain for the language
-        rag_chain = CURRENT_RAG_CHAINS[language]
-
-        # Process the query using the RAG system with language specification
+        
+        # Process Maha-Jal Samadhan specific query
         try:
-            result = process_scheme_query_with_retry(rag_chain, input_text, target_language=language)
-            assistant_reply = result[0] if isinstance(result, tuple) else result or ""
-
-            # Validate response
-            if len(assistant_reply.strip()) < 5:
-                SYSTEM_STATUS["failed_queries"] += 1
-                error_msg = {
-                    'en': "No relevant information found in the uploaded documents. Please ask a question that is covered in your PDF/TXT files.",
-                    'hi': "अपलोड किए गए दस्तावेज़ों में कोई प्रासंगिक जानकारी नहीं मिली। कृपया ऐसा प्रश्न पूछें जो आपकी PDF/TXT फाइलों में शामिल हो।",
-                    'mr': "अपलोड केलेल्या दस्तऐवजांमध्ये कोणतीही संबंधित माहिती सापडली नाही. कृपया तुमच्या PDF/TXT फाईल्समध्ये समाविष्ट असलेला प्रश्न विचारा."
-                }
-                return JSONResponse(
-                    status_code=400,
-                    content={"reply": error_msg.get(language, error_msg['en'])}
-                )
-
+            assistant_reply = process_maha_jal_query(input_text, session_id, language)
+            
             # Success
             SYSTEM_STATUS["successful_queries"] += 1
             
             # Add to chat history
-            session_id = request.session_id or "default"
             add_to_chat_history(session_id, input_text, assistant_reply, language)
             
             return {
                 "reply": assistant_reply,
                 "language": language,
-                "detected_language": result[2] if isinstance(result, tuple) and len(result) > 2 else language
+                "session_id": session_id,
+                "detected_language": language
             }
-
+            
         except Exception as query_error:
             SYSTEM_STATUS["failed_queries"] += 1
             SYSTEM_STATUS["last_error"] = str(query_error)
@@ -522,14 +412,14 @@ async def process_query(request: QueryRequest):
             
             error_msg = {
                 'en': "An error occurred while processing your query. Please try again later.",
-                'hi': "आपके प्रश्न को संसाधित करते समय एक त्रुटि हुई। कृपया बाद में पुनः प्रयास करें।",
                 'mr': "तुमचा प्रश्न प्रक्रिया करताना त्रुटी झाली. कृपया नंतर पुन्हा प्रयत्न करा."
             }
+            
             return JSONResponse(
                 status_code=500,
                 content={"reply": error_msg.get(language, error_msg['en'])}
             )
-
+        
     except Exception as e:
         SYSTEM_STATUS["failed_queries"] += 1
         SYSTEM_STATUS["last_error"] = str(e)
@@ -543,48 +433,21 @@ async def process_query(request: QueryRequest):
 async def health_check():
     """System health check endpoint"""
     try:
-        try:
-            ollama_connected, ollama_msg = check_ollama_connection(OLLAMA_BASE_URL, OLLAMA_MODEL)
-        except Exception as e:
-            ollama_connected, ollama_msg = False, f"Health check failed: {str(e)}"
-        
-        system_status = "healthy" if (ollama_connected and len(CURRENT_RAG_CHAINS) > 0) else "degraded"
-        if not ollama_connected:
-            system_status = "critical"
-        
         uptime = time.time() - SYSTEM_STATUS["startup_time"]
         
         return {
-            "status": system_status,
+            "status": "healthy",
             "timestamp": time.time(),
             "uptime_seconds": round(uptime, 2),
-            "ollama_status": {
-                "connected": ollama_connected,
-                "message": ollama_msg,
-                "base_url": OLLAMA_BASE_URL,
-                "model": OLLAMA_MODEL
-            },
-            "rag_status": {
-                "initialized": len(CURRENT_RAG_CHAINS) > 0,
-                "languages_available": list(CURRENT_RAG_CHAINS.keys()),
-                "model_key": CURRENT_MODEL_KEY
-            },
             "system_info": {
                 "active_sessions": len(CHAT_HISTORY),
-                "rate_limited_sessions": len(RATE_LIMIT_TRACKER),
-                "upload_directory": UPLOAD_DIR,
-                "files_available": bool(glob.glob(os.path.join(UPLOAD_DIR, "*.pdf")) or 
-                                     glob.glob(os.path.join(UPLOAD_DIR, "*.txt"))),
                 "total_queries": SYSTEM_STATUS["total_queries"],
                 "successful_queries": SYSTEM_STATUS["successful_queries"],
                 "failed_queries": SYSTEM_STATUS["failed_queries"],
-                "success_rate": round(
-                    (SYSTEM_STATUS["successful_queries"] / max(1, SYSTEM_STATUS["total_queries"])) * 100, 2
-                ),
                 "supported_languages": SYSTEM_STATUS["supported_languages"]
-            },
-            "last_error": SYSTEM_STATUS["last_error"]
+            }
         }
+        
     except Exception as e:
         logger.error(f"Health check error: {e}")
         return JSONResponse(
@@ -596,34 +459,21 @@ async def health_check():
             }
         )
 
-# Additional endpoints...
 @app.get("/suggestions/")
 async def get_suggestions(language: str = "en"):
     """Get suggested questions for the UI in specified language"""
     suggestions_by_language = {
         "en": [
-            "What government schemes are available?",
-            "How do I apply for benefits?",
-            "What are the eligibility criteria?",
-            "Where can I get more information?",
-            "What documents are required?",
-            "How long does the process take?"
-        ],
-        "hi": [
-            "सरकारी योजनाएं क्या उपलब्ध हैं?",
-            "मुझे कैसे आवेदन करना चाहिए?",
-            "पात्रता मापदंड क्या हैं?",
-            "मुझे और जानकारी कहाँ मिल सकती है?",
-            "कौन से दस्तावेज़ चाहिए?",
-            "प्रक्रिया में कितना समय लगता है?"
+            "Yes",
+            "No", 
+            "I want to register a grievance",
+            "Hello"
         ],
         "mr": [
-            "कोणत्या सरकारी योजना उपलब्ध आहेत?",
-            "मी कसा अर्ज करू?",
-            "पात्रता निकष काय आहेत?",
-            "मला अधिक माहिती कुठे मिळेल?",
-            "कोणते कागदपत्रे लागतील?",
-            "प्रक्रियेला किती वेळ लागतो?"
+            "होय",
+            "नाही",
+            "मला तक्रार नोंदवायची आहे", 
+            "नमस्कार"
         ]
     }
     
@@ -642,7 +492,6 @@ async def get_supported_languages():
         "supported_languages": SYSTEM_STATUS["supported_languages"],
         "language_details": {
             "en": {"name": "English", "native_name": "English"},
-            "hi": {"name": "Hindi", "native_name": "हिंदी"},
             "mr": {"name": "Marathi", "native_name": "मराठी"}
         }
     }
