@@ -1041,7 +1041,7 @@
             // Set up periodic connection checks.
             connectionCheckInterval = setInterval(checkConnection, CONFIG.CONNECTION_CHECK_INTERVAL);
             
-            // Initial connection check
+            // Initial connection check.
             setTimeout(checkConnection, 1000);
         });
 
