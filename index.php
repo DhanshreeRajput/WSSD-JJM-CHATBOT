@@ -460,14 +460,14 @@
         .pgrs-options {
             display: flex;
             flex-direction: row;
-            gap: 4px;
-            margin-top: 5px;
+            gap: 8px;
+            margin-top: 10px;
         }
 
         .option-button {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border: none;
-            padding: 7px 35px;
+            padding: 10px 16px;
             border-radius: 16px;
             font-size: 12px;
             color: white;
@@ -676,7 +676,7 @@
     <!-- Demo Content -->
     <div class="demo-content">
         <h1>Welcome to the WSSD JJM Chatbot</h1>
-        
+    </div>   
 
     <!-- Chat Widget -->
     <div class="chat-widget">
