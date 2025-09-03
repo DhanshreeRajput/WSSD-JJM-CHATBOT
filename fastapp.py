@@ -72,7 +72,7 @@ RATE_LIMIT_TRACKER = {}
 USER_SESSION_STATE = {}
 RATINGS_DATA = []  # Store ratings data for CSV export
 
-# Rating labels mapping
+# Rating labels mapping - Fixed Marathi characters
 RATING_LABELS = {
     "en": {
         1: "Poor",
@@ -97,6 +97,8 @@ MAHA_JAL_KNOWLEDGE_BASE = {
         "initial_question": "Would you like to register a Grievance on the Maha-Jal Samadhan Public Grievance Redressal System?",
         "check_existing_question": "Has a Grievance already been registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
         "feedback_question": "Would you like to provide feedback regarding the resolution of your grievance addressed through the Maha-Jal Samadhan Public Grievance Redressal System?",
+        "rating_question": "Please rate your experience with the Maha-Jal Samadhan Public Grievance Redressal System:",
+        "rating_request": "Rate from 1 (Poor) to 5 (Excellent)",
         "invalid_rating": "The information you have entered is invalid. Please try again.",
         "rating_thank_you": "Thank you for your feedback. Your rating has been recorded.",
         "options": {"yes": "YES", "no": "NO"},
@@ -121,6 +123,8 @@ MAHA_JAL_KNOWLEDGE_BASE = {
         "initial_question": "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये आपण तक्रार नोंदवू इच्छिता का?",
         "check_existing_question": "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये नोंदविण्यात आलेली तक्रार आहे का?",
         "feedback_question": "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीद्वारे सोडविण्यात आलेल्या आपल्या तक्रारीच्या निराकरणाबाबत अभिप्राय द्यायला इच्छिता का?",
+        "rating_question": "कृपया महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीच्या अनुभवाला रेटिंग द्या:",
+        "rating_request": "१ (खराब) ते ५ (उत्कृष्ट) पर्यंत रेटिंग द्या",
         "invalid_rating": "आपण दिलेली माहिती अवैध आहे. कृपया पुन्हा प्रयत्न करा.",
         "rating_thank_you": "आपल्या अभिप्रायाबद्दल धन्यवाद. आपले रेटिंग नोंदवले गेले आहे.",
         "options": {"yes": "होय", "no": "नाही"},
@@ -132,8 +136,8 @@ MAHA_JAL_KNOWLEDGE_BASE = {
                 "link": "https://mahajalsamadhan.in/log-grievance"
             },
             "method2": {
-                "title": "२. महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये मोबाईल अ‍ॅपद्वारे तक्रार नोंदणी",
-                "description": "आपण खालील लिंकद्वारे मोबाइल अ‍ॅप डाउनलोड करून तक्रार नोंदवू शकता:",
+                "title": "२. महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये मोबाईल अॅपद्वारे तक्रार नोंदणी",
+                "description": "आपण खालील लिंकद्वारे मोबाइल अॅप डाउनलोड करून तक्रार नोंदवू शकता:",
                 "link": "https://play.google.com/store/apps/details?id=in.mahajalsamadhan.user&pli=1"
             }
         },
@@ -169,20 +173,20 @@ def add_to_chat_history(session_id: str, user_msg: str, bot_msg: str, language: 
         logger.error(f"Failed to add to chat history: {e}")
 
 def save_rating_data(rating: int, session_id: str, language: str, grievance_id: str = None, feedback_text: str = None):
-    """Save rating data for CSV export"""
+    """Save rating data for CSV export with proper UTF-8 handling"""
     try:
         rating_entry = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "session_id": session_id,
             "rating": rating,
-            "rating_label": RATING_LABELS[language][rating],
+            "rating_label": RATING_LABELS[language][rating],  # This now contains proper Marathi text
             "language": language,
             "grievance_id": grievance_id or "N/A",
             "feedback_text": feedback_text or "N/A",
             "ip_address": "N/A"  # Can be populated from request if needed
         }
         RATINGS_DATA.append(rating_entry)
-        logger.info(f"Rating saved: {rating}/5 for session {session_id}")
+        logger.info(f"Rating saved: {rating}/5 ({RATING_LABELS[language][rating]}) for session {session_id}")
     except Exception as e:
         logger.error(f"Failed to save rating data: {e}")
 
@@ -259,7 +263,7 @@ def get_initial_response(language: str) -> str:
     if language == "mr":
         return f"{kb['welcome_message']}\n\nप्रश्न क्र. १: {kb['initial_question']}\n\nउत्तर १ - \"{kb['options']['yes']}\"\nउत्तर २ - \"{kb['options']['no']}\""
     else:
-        return f"{kb['welcome_message']}\n\nQuestion 1:\n{kb['initial_question']}\n\nAnswer 1: \"{kb['options']['yes']}\"\nAnswer 2: \"{kb['options']['no']}\""
+        return f"{kb['welcome_message']}\n\nQuestion 1: {kb['initial_question']}\n\nAnswer 1: \"{kb['options']['yes']}\"\nAnswer 2: \"{kb['options']['no']}\""
 
 def get_feedback_question(language: str) -> str:
     """Get the feedback question"""
@@ -273,9 +277,9 @@ def get_rating_request(language: str) -> str:
     """Get the rating request message"""
     kb = MAHA_JAL_KNOWLEDGE_BASE[language]
     if language == "mr":
-        return f"{kb['rating_question']}\n\n{kb['rating_request']}"
+        return f"{kb['rating_question']}\n\n{kb['rating_request']}\n\n१ - {RATING_LABELS['mr'][1]}\n२ - {RATING_LABELS['mr'][2]}\n३ - {RATING_LABELS['mr'][3]}\n४ - {RATING_LABELS['mr'][4]}\n५ - {RATING_LABELS['mr'][5]}"
     else:
-        return f"{kb['rating_question']}\n\n{kb['rating_request']}"
+        return f"{kb['rating_question']}\n\n{kb['rating_request']}\n\n1 - {RATING_LABELS['en'][1]}\n2 - {RATING_LABELS['en'][2]}\n3 - {RATING_LABELS['en'][3]}\n4 - {RATING_LABELS['en'][4]}\n5 - {RATING_LABELS['en'][5]}"
 
 def get_yes_response(language: str) -> str:
     """Get the response for 'YES' answer"""
@@ -386,7 +390,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Maha-Jal Samadhan Chatbot Backend with Rating System",
     description="Public Grievance Redressal System Chatbot with bilingual support and 5-star rating system",
-    version="2.1.0",
+    version="2.1.1",
     lifespan=lifespan
 )
 
@@ -430,7 +434,7 @@ async def root():
             "message": "Maha-Jal Samadhan Chatbot Backend is running",
             "system": "Public Grievance Redressal System with Rating",
             "mode": "Hardcoded Q&A System with 5-star rating",
-            "version": "2.1.0",
+            "version": "2.1.1",
             "uptime_seconds": round(uptime, 2),
             "system_status": {
                 "active_sessions": len(CHAT_HISTORY),
@@ -516,7 +520,7 @@ async def process_query(request: QueryRequest):
             
             error_msg = {
                 'en': "An error occurred while processing your query. Please try again later.",
-                'mr': "तुमचा प्रश्न प्रक्रिया करताना त्रुटी झाली. कृपया नंतर पुन्हा प्रयत्न करा."
+                'mr': "तुमचा प्रश्न प्रक्रिया करतान त्रुटी झाली. कृपया नंतर पुन्हा प्रयत्न करा."
             }
             
             return JSONResponse(
@@ -591,7 +595,7 @@ async def submit_rating(request: RatingRequest):
 
 @app.get("/ratings/export")
 async def export_ratings():
-    """Export ratings data as CSV file"""
+    """Export ratings data as CSV file with proper UTF-8 encoding for Marathi text"""
     try:
         if not RATINGS_DATA:
             return JSONResponse(
@@ -599,27 +603,44 @@ async def export_ratings():
                 content={"error": "No ratings data available for export"}
             )
         
-        # Create CSV content
+        # Create CSV content with UTF-8 BOM for proper encoding
         output = io.StringIO()
-        fieldnames = ["timestamp", "session_id", "rating", "rating_label", "language", "grievance_id", "feedback_text", "ip_address"]
+        fieldnames = ["timestamp", "session_id", "rating", "feedback", "language", "grievance_id", "ip_address"]
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         
         writer.writeheader()
         for rating_data in RATINGS_DATA:
-            writer.writerow(rating_data)
+            # Create modified row data with proper encoding
+            modified_row = {
+                "timestamp": rating_data["timestamp"],
+                "session_id": rating_data["session_id"],
+                "rating": rating_data["rating"],
+                "feedback": rating_data["rating_label"],  # This contains the Marathi text
+                "language": rating_data["language"],
+                "grievance_id": rating_data["grievance_id"],
+                "ip_address": rating_data["ip_address"]
+            }
+            writer.writerow(modified_row)
         
-        # Prepare response
+        # Get CSV content and add UTF-8 BOM for proper encoding
         csv_content = output.getvalue()
         output.close()
+        
+        # Add UTF-8 BOM to ensure proper encoding in Excel and other applications
+        utf8_bom = '\ufeff'
+        csv_content_with_bom = utf8_bom + csv_content
         
         # Generate filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"maha_jal_ratings_{timestamp}.csv"
         
         return StreamingResponse(
-            io.BytesIO(csv_content.encode('utf-8')),
-            media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
+            io.BytesIO(csv_content_with_bom.encode('utf-8')),
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Content-Type": "text/csv; charset=utf-8"
+            }
         )
         
     except Exception as e:
