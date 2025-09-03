@@ -513,76 +513,133 @@
             box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
         }
 
+        /* 5-Star Rating System Styles */
         .rating-container {
             display: flex;
-            gap: 8px;
-            margin: 10px 0;
-            justify-content: center;
+            flex-direction: column;
+            gap: 15px;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
         }
 
-        .rating-button {
-            background: linear-gradient(135deg, #f1f3f4 0%, #e8eaed 100%);
-            border: 2px solid #e1e8ed;
-            padding: 10px 16px;
-            border-radius: 50%;
+        .rating-title {
             font-size: 14px;
             font-weight: 600;
-            color: #5f6368;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            width: 40px;
-            height: 40px;
+            color: #495057;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .stars-container {
             display: flex;
-            align-items: center;
             justify-content: center;
+            gap: 8px;
+            margin: 10px 0;
         }
 
-        .rating-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: #667eea;
+        .star {
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
         }
 
-        .rating-button.selected {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: #667eea;
-            transform: translateY(-1px);
+        .star svg {
+            width: 100%;
+            height: 100%;
         }
 
-        .rating-button:active {
-            transform: translateY(-1px);
+        .star.empty svg {
+            fill: #d1d5db;
+            stroke: #9ca3af;
+            stroke-width: 1;
         }
 
-        .submit-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .star.filled svg {
+            fill: #fbbf24;
+            stroke: #f59e0b;
+            stroke-width: 1;
+        }
+
+        .star.hover svg {
+            fill: #fcd34d;
+            stroke: #f59e0b;
+            stroke-width: 1;
+            transform: scale(1.1);
+        }
+
+        .star:hover {
+            transform: scale(1.15);
+        }
+
+        .rating-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #6b7280;
+            margin-top: 5px;
+            padding: 0 5px;
+        }
+
+        .rating-feedback {
+            text-align: center;
+            margin: 10px 0;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .rating-feedback.rating-1 { color: #dc2626; }
+        .rating-feedback.rating-2 { color: #ea580c; }
+        .rating-feedback.rating-3 { color: #ca8a04; }
+        .rating-feedback.rating-4 { color: #16a34a; }
+        .rating-feedback.rating-5 { color: #059669; }
+
+        .submit-rating-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             border: none;
             padding: 10px 20px;
-            border-radius: 16px;
+            border-radius: 20px;
             font-size: 12px;
+            font-weight: 600;
             color: white;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
             margin-top: 10px;
+            align-self: center;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
         }
 
-        .submit-btn:hover:not(:disabled) {
+        .submit-rating-btn:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
         }
 
-        .submit-btn:disabled {
+        .submit-rating-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
             transform: none;
-            background: #ccc;
+            background: #9ca3af;
+            box-shadow: none;
         }
 
-        .submit-btn:active:not(:disabled) {
+        .submit-rating-btn:active:not(:disabled) {
             transform: translateY(-1px);
+        }
+
+        .rating-success {
+            background: #dcfce7;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 12px;
+            margin-top: 10px;
         }
 
         .input-field {
@@ -661,6 +718,29 @@
             transform: translateY(0);
         }
 
+        /* Export Button */
+        .export-ratings-btn {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border: none;
+            padding: 8px 12px;
+            border-radius: 16px;
+            font-size: 11px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-left: 8px;
+        }
+
+        .export-ratings-btn:hover {
+            transform: translateY(-1px);
+            opacity: 0.9;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+        }
+
+        .export-ratings-btn:active {
+            transform: translateY(0);
+        }
+
         /* Responsive Design */
         @media (max-width: 480px) {
             .chat-window {
@@ -729,12 +809,16 @@
                 <div class="quick-actions">
                     <button class="quick-action-btn" id="restartBtn">Restart</button>
                     <button class="quick-action-btn" id="clearChatBtn">Clear Chat</button>
+                    <button class="export-ratings-btn" id="exportRatingsBtn">Export Ratings</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
+        // API Configuration
+        const API_BASE_URL = 'http://localhost:8000';
+        
         // PGRS Script Configuration
         const PGRS_SCRIPTS = {
             en: {
@@ -760,12 +844,16 @@
                 website_button: "Register via Website",
                 app_button: "Download Mobile App",
                 suggestions_title: "Quick Suggestions:",
+                rating_labels: {
+                    1: "Poor",
+                    2: "Fair", 
+                    3: "Good",
+                    4: "Very Good",
+                    5: "Excellent"
+                },
                 suggestions: [
                     "I want to register a grievance",
-                    //"Would you like to register a Grievance on the Maha-Jal Samadhan Public Grievance Redressal System?",
-                    //"Has a Grievance already been registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
-                    //"Would you like to check the status of the grievance which you have registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
-                    //"Would you like to provide feedback regarding the resolution of your grievance addressed through the Maha-Jal Samadhan Public Grievance Redressal System?"
+                    "I want to provide feedback"
                 ]
             },
             mr: {
@@ -777,26 +865,30 @@
                 register_methods: "आपण 'महा-जल समाधान' सार्वजनिक तक्रार निवारण प्रणालीवर आपली तक्रार दोन पद्धतींनी नोंदवू शकता:",
                 website_method: "१. महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर वेबसाईटद्वारे तक्रार नोंदणी",
                 website_link: "https://mahajalsamadhan.in/log-grievance",
-                app_method: "२. महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर मोबाईल अॅपद्वारे तक्रार नोंदणी",
+                app_method: "२. महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर मोबाईल अ‍ॅपद्वारे तक्रार नोंदणी",
                 app_link: "https://play.google.com/store/apps/details?id=in.mahajalsamadhan.user&pli=1",
                 grievance_id_prompt: "कृपया आपण आपल्या तक्रारीचा \"Grievance ID\" म्हणजेच तक्रार नोंदणी क्रमांक दाखल/नमूद करा. (उदाहरणार्थ - \"G-12safeg7678\")",
                 invalid_grievance_id: "आपण आपल्या तक्रारीचा \"Grievance ID\" म्हणजेच तक्रार नोंदणी क्रमांक चुकीचा दाखल केला आहे. कृपया योग्य \"Grievance ID\" म्हणजेच तक्रार नोंदणी क्रमांक दाखल/नमूद करा",
                 status_prefix: "आपल्या तक्रारीची सद्यस्थिती पुढीलप्रमाणे आहे:",
-                rating_prompt: "महा-जल समाधान' सार्वजनिक तक्रार निवारण प्रणालीवर आपल्या तक्रारीच्या निराकरणासंदर्भात, सेवा गुणवत्तेच्या दृष्टीने आपण १ ते ५ या श्रेणीमध्ये किती गुण देऊ इच्छिता ?१ म्हणजे 'असमाधानकारक' आणि ५ म्हणजे 'समाधानकारक'.",
-                rating_request: "कृपया आपल्यादवारे देण्यात आलेले गुण १ ते ५ मध्ये देण्यात यावे",
+                rating_prompt: "महा-जल समाधान' सार्वजनिक तक्रार निवारण प्रणालीवर आपल्या तक्रारीच्या निराकरणासंदर्भात, सेवा गुणवत्तेच्या दृष्टीने आपण १ ते ५ या श्रेणीमध्ये किती गुण द्यायला इच्छिता? १ म्हणजे 'असमाधानकारक' आणि ५ म्हणजे 'समाधानकारक'.",
+                rating_request: "कृपया आपल्यादवारे देण्यात आलेले गुण १ ते ५ मध्ये देण्यात यावे:",
                 invalid_input: "आपण दिलेली माहिती अवैध आहे. कृपया पुन्हा प्रयत्न करा.",
                 thank_you: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीचा वापर केल्याबद्दल आपले धन्यवाद.",
                 yes: "होय",
                 no: "नाही",
                 website_button: "वेबसाईटवरून नोंदणी करा",
-                app_button: "मोबाईल अँप डाउनलोड करा",
+                app_button: "मोबाईल अ‍ॅप डाउनलोड करा",
                 suggestions_title: "त्वरित सूचना:",
+                rating_labels: {
+                    1: "खराब",
+                    2: "सामान्य",
+                    3: "चांगले", 
+                    4: "खूप चांगले",
+                    5: "उत्कृष्ट"
+                },
                 suggestions: [
                     "मला तक्रार नोंदवायची आहे",
-                    //"महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये आपण तक्रार नोंदवू इच्छिता का?",
-                    //"महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये नोंदविण्यात आलेली तक्रार आहे का?",
-                    //"आपण नोंदवलेल्या तक्रारीची स्थिती तपासू इच्छिता का?",
-                    //"आपल्या तक्रारीच्या निराकरणाबाबत अभिप्राय द्याल का?"
+                    "मला अभिप्राय द्यायचा आहे"
                 ]
             }
         };
@@ -807,6 +899,7 @@
         let pendingGrievanceId = '';
         let selectedRating = null;
         let isWindowOpen = false;
+        let currentSessionId = null;
 
         // DOM Elements
         const elements = {
@@ -818,12 +911,17 @@
             languageSelect: document.getElementById('languageSelect'),
             restartBtn: document.getElementById('restartBtn'),
             clearChatBtn: document.getElementById('clearChatBtn'),
+            exportRatingsBtn: document.getElementById('exportRatingsBtn'),
             quickSuggestions: document.getElementById('quickSuggestions'),
             suggestionsGrid: document.getElementById('suggestionsGrid'),
             suggestionsTitle: document.getElementById('suggestionsTitle')
         };
 
         // Utility Functions
+        function generateSessionId() {
+            return 'session_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        }
+
         function getCurrentTime() {
             return new Date().toLocaleTimeString('en-US', { 
                 hour: '2-digit', 
@@ -836,6 +934,15 @@
             setTimeout(() => {
                 elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
             }, 100);
+        }
+
+        function showTypingIndicator() {
+            elements.typingIndicator.style.display = 'block';
+            scrollToBottom();
+        }
+
+        function hideTypingIndicator() {
+            elements.typingIndicator.style.display = 'none';
         }
 
         function addMessage(content, isUser = false) {
@@ -907,31 +1014,37 @@
             scrollToBottom();
         }
 
-        function addInputMessage(content, inputType = 'text') {
+        function addRatingMessage(content) {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message bot';
             
-            let inputHtml = '';
-            if (inputType === 'rating') {
-                inputHtml = `
-                    <div class="rating-container">
-                        ${[1,2,3,4,5].map(num => 
-                            `<button class="rating-button" data-rating="${num}">${num}</button>`
-                        ).join('')}
-                    </div>
-                    <button class="submit-btn" id="submitRating" disabled>Submit Rating</button>
-                `;
-            } else {
-                inputHtml = `
-                    <input type="text" class="input-field" id="grievanceInput" placeholder="Enter Grievance ID" maxlength="20">
-                    <button class="submit-btn" id="submitGrievanceId">Submit</button>
-                `;
-            }
+            const script = PGRS_SCRIPTS[currentLanguage];
+            const labels = script.rating_labels;
             
             messageDiv.innerHTML = `
                 <div class="message-content">
                     ${content}
-                    ${inputHtml}
+                    <div class="rating-container">
+                        <div class="rating-title">Rate our service quality</div>
+                        <div class="stars-container" id="starsContainer">
+                            ${[1,2,3,4,5].map(num => `
+                                <div class="star empty" data-rating="${num}">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.46,13.97L5.82,21L12,17.27Z"/>
+                                    </svg>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="rating-labels">
+                            <span>${labels[1]}</span>
+                            <span>${labels[2]}</span>
+                            <span>${labels[3]}</span>
+                            <span>${labels[4]}</span>
+                            <span>${labels[5]}</span>
+                        </div>
+                        <div class="rating-feedback" id="ratingFeedback"></div>
+                        <button class="submit-rating-btn" id="submitRatingBtn" disabled>Submit Rating</button>
+                    </div>
                     <div class="message-time">${getCurrentTime()}</div>
                 </div>
             `;
@@ -939,57 +1052,117 @@
             elements.chatMessages.insertBefore(messageDiv, elements.typingIndicator);
             scrollToBottom();
             
-            if (inputType === 'rating') {
-                setupRatingButtons(messageDiv);
-            } else {
-                setupGrievanceIdInput(messageDiv);
-            }
+            setupRatingSystem(messageDiv);
         }
 
-        function setupRatingButtons(container) {
-            const ratingButtons = container.querySelectorAll('.rating-button');
-            const submitBtn = container.querySelector('#submitRating');
+        function setupRatingSystem(container) {
+            const stars = container.querySelectorAll('.star');
+            const submitBtn = container.querySelector('#submitRatingBtn');
+            const feedback = container.querySelector('#ratingFeedback');
+            const script = PGRS_SCRIPTS[currentLanguage];
             
-            ratingButtons.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    ratingButtons.forEach(b => b.classList.remove('selected'));
-                    e.target.classList.add('selected');
-                    selectedRating = parseInt(e.target.dataset.rating);
+            let currentRating = 0;
+            let hoverRating = 0;
+
+            // Star hover and click functionality
+            stars.forEach((star, index) => {
+                const rating = index + 1;
+                
+                star.addEventListener('mouseenter', () => {
+                    hoverRating = rating;
+                    updateStarDisplay(stars, hoverRating, currentRating, true);
+                    showFeedback(feedback, rating, script.rating_labels);
+                });
+                
+                star.addEventListener('mouseleave', () => {
+                    hoverRating = 0;
+                    updateStarDisplay(stars, currentRating, currentRating, false);
+                    if (currentRating > 0) {
+                        showFeedback(feedback, currentRating, script.rating_labels);
+                    } else {
+                        feedback.textContent = '';
+                        feedback.className = 'rating-feedback';
+                    }
+                });
+                
+                star.addEventListener('click', () => {
+                    currentRating = rating;
+                    selectedRating = rating;
+                    updateStarDisplay(stars, currentRating, currentRating, false);
+                    showFeedback(feedback, currentRating, script.rating_labels);
                     submitBtn.disabled = false;
                 });
             });
-            
-            submitBtn.addEventListener('click', () => {
+
+            // Submit button functionality
+            submitBtn.addEventListener('click', async () => {
                 if (selectedRating) {
-                    addMessage(`Rating: ${selectedRating}`, true);
-                    handleRatingSubmission(selectedRating);
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Submitting...';
+                    
+                    try {
+                        await submitRating(selectedRating);
+                    } catch (error) {
+                        console.error('Failed to submit rating:', error);
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Submit Rating';
+                    }
                 }
             });
         }
 
-        function setupGrievanceIdInput(container) {
-            const input = container.querySelector('#grievanceInput');
-            const submitBtn = container.querySelector('#submitGrievanceId');
-            
-            input.addEventListener('input', () => {
-                submitBtn.disabled = input.value.trim().length === 0;
-            });
-            
-            input.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter' && input.value.trim()) {
-                    submitBtn.click();
+        function updateStarDisplay(stars, rating, currentRating, isHovering) {
+            stars.forEach((star, index) => {
+                const starRating = index + 1;
+                star.className = 'star';
+                
+                if (starRating <= rating) {
+                    if (isHovering) {
+                        star.className += ' hover';
+                    } else {
+                        star.className += ' filled';
+                    }
+                } else {
+                    star.className += ' empty';
                 }
             });
-            
-            submitBtn.addEventListener('click', () => {
-                const grievanceId = input.value.trim();
-                if (grievanceId) {
-                    addMessage(`Grievance ID: ${grievanceId}`, true);
-                    handleGrievanceIdSubmission(grievanceId);
+        }
+
+        function showFeedback(feedbackElement, rating, labels) {
+            feedbackElement.textContent = labels[rating];
+            feedbackElement.className = `rating-feedback rating-${rating}`;
+        }
+
+        async function submitRating(rating) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/rating/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        rating: rating,
+                        session_id: currentSessionId,
+                        language: currentLanguage,
+                        grievance_id: pendingGrievanceId || null
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addMessage(`Thank you! You rated our service ${rating}/5 stars (${data.rating_label})`, true);
+                    setTimeout(() => {
+                        addMessage(data.reply, false);
+                        chatState = 'end';
+                    }, 500);
+                } else {
+                    throw new Error(data.reply || 'Failed to submit rating');
                 }
-            });
-            
-            setTimeout(() => input.focus(), 100);
+            } catch (error) {
+                console.error('Rating submission error:', error);
+                addMessage('Sorry, there was an error submitting your rating. Please try again.', false);
+            }
         }
 
         function loadQuickSuggestions() {
@@ -998,10 +1171,7 @@
             
             elements.suggestionsGrid.innerHTML = '';
             
-            // Show first 6 suggestions to avoid overcrowding
-            const suggestionsToShow = script.suggestions.slice(0, 6);
-            
-            suggestionsToShow.forEach(suggestion => {
+            script.suggestions.forEach(suggestion => {
                 const suggestionBtn = document.createElement('button');
                 suggestionBtn.className = 'quick-suggestion-btn';
                 suggestionBtn.textContent = suggestion;
@@ -1033,47 +1203,23 @@
             const script = PGRS_SCRIPTS[currentLanguage];
             const lowerSuggestion = suggestion.toLowerCase();
             
-            // Handle greetings
-            if (lowerSuggestion.includes('hello') || lowerSuggestion.includes('नमस्कार')) {
-                addMessage(script.welcome);
-                setTimeout(() => {
-                    addOptionsMessage(script.question1, [script.yes, script.no]);
-                    chatState = 'start';
-                }, 1000);
+            // Handle feedback suggestions
+            if (lowerSuggestion.includes('feedback') || lowerSuggestion.includes('अभिप्राय')) {
+                chatState = 'feedback_question';
+                addOptionsMessage(script.question22, [script.yes, script.no]);
                 return;
             }
             
-            // Handle yes/no responses
-            if (lowerSuggestion === 'yes' || lowerSuggestion === 'होय') {
-                handleUserChoice(0); // YES option
-                return;
-            }
-            
-            if (lowerSuggestion === 'no' || lowerSuggestion === 'नाही') {
-                handleUserChoice(1); // NO option
-                return;
-            }
-            
-            // Handle specific questions as if starting conversation
+            // Handle register grievance suggestions
             if (lowerSuggestion.includes('register') || lowerSuggestion.includes('grievance') || 
-                lowerSuggestion.includes('तक्रार') || lowerSuggestion.includes('नोंदव')) {
+                lowerSuggestion.includes('तक्रार') || lowerSuggestion.includes('नोंदवा')) {
                 
                 chatState = 'start';
                 addOptionsMessage(script.question1, [script.yes, script.no]);
                 return;
             }
             
-            // For other suggestions that are questions, start the conversation
-            if (lowerSuggestion.includes('?') || lowerSuggestion.includes('का?')) {
-                chatState = 'start';
-                addMessage(script.welcome);
-                setTimeout(() => {
-                    addOptionsMessage(script.question1, [script.yes, script.no]);
-                }, 1000);
-                return;
-            }
-            
-            // Default response for unrecognized suggestions
+            // Default response for other suggestions
             addMessage(script.welcome);
             setTimeout(() => {
                 addOptionsMessage(script.question1, [script.yes, script.no]);
@@ -1101,47 +1247,17 @@
                             }, 1000);
                         }, 500);
                     } else { // NO - Already registered
-                        chatState = 'already_registered';
-                        setTimeout(() => {
-                            addOptionsMessage(script.question2, [script.yes, script.no]);
-                        }, 500);
-                    }
-                    break;
-                
-                case 'already_registered':
-                    if (optionIndex === 0) { // YES - Has grievance registered
-                        chatState = 'check_or_feedback';
-                        setTimeout(() => {
-                            addOptionsMessage(script.question21, [script.yes, script.no]);
-                            chatState = 'check_status';
-                        }, 500);
-                    } else { // NO - Doesn't have grievance
-                        setTimeout(() => {
-                            addMessage(script.thank_you);
-                            chatState = 'end';
-                        }, 500);
-                    }
-                    break;
-                
-                case 'check_status':
-                    if (optionIndex === 0) { // YES - Check status
-                        setTimeout(() => {
-                            addInputMessage(script.grievance_id_prompt, 'text');
-                            chatState = 'awaiting_grievance_id';
-                        }, 500);
-                    } else { // NO - Don't check status
+                        chatState = 'feedback_question';
                         setTimeout(() => {
                             addOptionsMessage(script.question22, [script.yes, script.no]);
-                            chatState = 'feedback_choice';
                         }, 500);
                     }
                     break;
                 
-                case 'feedback_choice':
+                case 'feedback_question':
                     if (optionIndex === 0) { // YES - Give feedback
                         setTimeout(() => {
-                            addMessage(script.rating_prompt);
-                            addInputMessage(script.rating_request, 'rating');
+                            addRatingMessage(script.rating_prompt);
                             chatState = 'awaiting_rating';
                         }, 500);
                     } else { // NO - No feedback
@@ -1154,58 +1270,17 @@
             }
         }
 
-        function handleGrievanceIdSubmission(grievanceId) {
-            const script = PGRS_SCRIPTS[currentLanguage];
-            
-            // Simple validation - check if it looks like a grievance ID
-            const grievanceIdPattern = /^G-[A-Za-z0-9]+$/;
-            
-            if (grievanceIdPattern.test(grievanceId)) {
-                // Valid format - simulate status check
-                setTimeout(() => {
-                    addMessage(script.status_prefix);
-                    addMessage("Status: Under Review - Your grievance is being processed by the concerned department. Expected resolution time: 7-10 working days.", false);
-                    setTimeout(() => {
-                        addMessage(script.thank_you);
-                        chatState = 'end';
-                    }, 1000);
-                }, 500);
-            } else {
-                // Invalid format
-                setTimeout(() => {
-                    addMessage(script.invalid_grievance_id);
-                    addInputMessage(script.grievance_id_prompt, 'text');
-                }, 500);
-            }
-        }
-
-        function handleRatingSubmission(rating) {
-            const script = PGRS_SCRIPTS[currentLanguage];
-            
-            if (rating >= 1 && rating <= 5) {
-                setTimeout(() => {
-                    addMessage(`Thank you for rating our service ${rating}/5. Your feedback helps us improve our services.`);
-                    setTimeout(() => {
-                        addMessage(script.thank_you);
-                        chatState = 'end';
-                    }, 1000);
-                }, 500);
-            } else {
-                setTimeout(() => {
-                    addMessage(script.invalid_input);
-                    addInputMessage(script.rating_request, 'rating');
-                }, 500);
-            }
-        }
-
         // UI Control Functions
         function toggleChatWindow() {
             isWindowOpen = !isWindowOpen;
             elements.chatWindow.style.display = isWindowOpen ? 'flex' : 'none';
             
             if (isWindowOpen) {
+                if (!currentSessionId) {
+                    currentSessionId = generateSessionId();
+                }
                 loadQuickSuggestions();
-                if (chatState === 'start') {
+                if (chatState === 'start' && elements.chatMessages.querySelectorAll('.message').length === 0) {
                     startConversation();
                 }
             }
@@ -1235,6 +1310,7 @@
             chatState = 'start';
             selectedRating = null;
             pendingGrievanceId = '';
+            currentSessionId = generateSessionId();
             elements.quickSuggestions.style.display = 'block';
             loadQuickSuggestions();
         }
@@ -1253,12 +1329,30 @@
                     startConversation();
                 }, 1000);
             }
-            
-            // Save language preference
+        }
+
+        async function exportRatings() {
             try {
-                localStorage.setItem('pgrs_language', langCode);
-            } catch (e) {
-                console.warn('Could not save language preference:', e);
+                const response = await fetch(`${API_BASE_URL}/ratings/export`);
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = `maha_jal_ratings_${new Date().toISOString().split('T')[0]}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    const error = await response.json();
+                    alert('No ratings data available for export');
+                }
+            } catch (error) {
+                console.error('Export error:', error);
+                alert('Failed to export ratings. Please try again.');
             }
         }
 
@@ -1278,26 +1372,18 @@
             clearChat();
         });
 
+        elements.exportRatingsBtn.addEventListener('click', () => {
+            exportRatings();
+        });
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('PGRS ChatBot initialized');
-            
-            // Load saved language preference
-            try {
-                const savedLanguage = localStorage.getItem('pgrs_language');
-                if (savedLanguage && PGRS_SCRIPTS[savedLanguage]) {
-                    currentLanguage = savedLanguage;
-                    elements.languageSelect.value = savedLanguage;
-                }
-            } catch (e) {
-                console.warn('Could not load language preference:', e);
-            }
-            
-            // Load initial suggestions
+            console.log('PGRS ChatBot with Rating System initialized');
+            currentSessionId = generateSessionId();
             loadQuickSuggestions();
         });
 
-        console.log('PGRS ChatBot script loaded successfully');
+        console.log('PGRS ChatBot with Rating System script loaded successfully');
     </script>
 </body>
 </html>

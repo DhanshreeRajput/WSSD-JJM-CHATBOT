@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 from typing import Optional
@@ -7,6 +7,9 @@ import time
 import os
 import logging
 import re
+import csv
+import io
+from datetime import datetime
 from contextlib import asynccontextmanager
 
 # Setup logging
@@ -49,10 +52,43 @@ class QueryRequest(BaseModel):
             raise ValueError(f'Language must be one of: {supported_languages}')
         return v
 
+class RatingRequest(BaseModel):
+    rating: int
+    session_id: Optional[str] = None
+    language: str = "en"
+    grievance_id: Optional[str] = None
+    feedback_text: Optional[str] = None
+
+    @field_validator('rating')
+    @classmethod
+    def validate_rating(cls, v):
+        if v not in [1, 2, 3, 4, 5]:
+            raise ValueError('Rating must be between 1 and 5')
+        return v
+
 # Global variables
 CHAT_HISTORY = {}
 RATE_LIMIT_TRACKER = {}
 USER_SESSION_STATE = {}
+RATINGS_DATA = []  # Store ratings data for CSV export
+
+# Rating labels mapping
+RATING_LABELS = {
+    "en": {
+        1: "Poor",
+        2: "Fair", 
+        3: "Good",
+        4: "Very Good",
+        5: "Excellent"
+    },
+    "mr": {
+        1: "खराब",
+        2: "सामान्य",
+        3: "चांगले", 
+        4: "खूप चांगले",
+        5: "उत्कृष्ट"
+    }
+}
 
 # Exact Maha-Jal Samadhan Knowledge Base from your PDF images
 MAHA_JAL_KNOWLEDGE_BASE = {
@@ -60,6 +96,11 @@ MAHA_JAL_KNOWLEDGE_BASE = {
         "welcome_message": "Welcome to the Maha-Jal Samadhan Public Grievance Redressal System.",
         "initial_question": "Would you like to register a Grievance on the Maha-Jal Samadhan Public Grievance Redressal System?",
         "check_existing_question": "Has a Grievance already been registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
+        "feedback_question": "Would you like to provide feedback regarding the resolution of your grievance addressed through the Maha-Jal Samadhan Public Grievance Redressal System?",
+        "rating_question": "With reference to the resolution of your grievance on the Maha-Jal Samadhan Public Grievance Redressal System, how would you rate the quality of service on a scale of 1 to 5, where: 1 = Unsatisfactory and 5 = Satisfactory?",
+        "rating_request": "Please provide your rating between 1 and 5:",
+        "invalid_rating": "The information you have entered is invalid. Please try again.",
+        "rating_thank_you": "Thank you for your feedback. Your rating has been recorded.",
         "options": {"yes": "YES", "no": "NO"},
         "yes_response": {
             "intro": "You can register your Grievance on the Maha-Jal Samadhan Public Grievance Redressal System through two methods:",
@@ -81,6 +122,11 @@ MAHA_JAL_KNOWLEDGE_BASE = {
         "welcome_message": "नमस्कार, महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये आपले स्वागत आहे.",
         "initial_question": "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये आपण तक्रार नोंदवू इच्छिता का?",
         "check_existing_question": "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये नोंदविण्यात आलेली तक्रार आहे का?",
+        "feedback_question": "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीद्वारे सोडविण्यात आलेल्या आपल्या तक्रारीच्या निराकरणाबाबत अभिप्राय द्यायला इच्छिता का?",
+        "rating_question": "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर आपल्या तक्रारीच्या निराकरणासंदर्भात, सेवा गुणवत्तेच्या दृष्टीने आपण १ ते ५ या श्रेणीमध्ये किती गुण द्यायला इच्छिता? १ म्हणजे 'असमाधानकारक' आणि ५ म्हणजे 'समाधानकारक'.",
+        "rating_request": "कृपया आपल्यादवारे देण्यात आलेले गुण १ ते ५ मध्ये देण्यात यावे:",
+        "invalid_rating": "आपण दिलेली माहिती अवैध आहे. कृपया पुन्हा प्रयत्न करा.",
+        "rating_thank_you": "आपल्या अभिप्रायाबद्दल धन्यवाद. आपले रेटिंग नोंदवले गेले आहे.",
         "options": {"yes": "होय", "no": "नाही"},
         "yes_response": {
             "intro": "आपण 'महा-जल समाधान' सार्वजनिक तक्रार निवारण प्रणालीमध्ये आपली तक्रार दोन पद्धतींनी नोंदवू शकता:",
@@ -125,6 +171,24 @@ def add_to_chat_history(session_id: str, user_msg: str, bot_msg: str, language: 
         CHAT_HISTORY[session_id] = CHAT_HISTORY[session_id][:50]
     except Exception as e:
         logger.error(f"Failed to add to chat history: {e}")
+
+def save_rating_data(rating: int, session_id: str, language: str, grievance_id: str = None, feedback_text: str = None):
+    """Save rating data for CSV export"""
+    try:
+        rating_entry = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "session_id": session_id,
+            "rating": rating,
+            "rating_label": RATING_LABELS[language][rating],
+            "language": language,
+            "grievance_id": grievance_id or "N/A",
+            "feedback_text": feedback_text or "N/A",
+            "ip_address": "N/A"  # Can be populated from request if needed
+        }
+        RATINGS_DATA.append(rating_entry)
+        logger.info(f"Rating saved: {rating}/5 for session {session_id}")
+    except Exception as e:
+        logger.error(f"Failed to save rating data: {e}")
 
 def detect_greeting(text: str) -> tuple[bool, str]:
     """Detect greeting intent and return a normalized key"""
@@ -201,6 +265,22 @@ def get_initial_response(language: str) -> str:
     else:
         return f"{kb['welcome_message']}\n\nQuestion 1:\n{kb['initial_question']}\n\nAnswer 1: \"{kb['options']['yes']}\"\nAnswer 2: \"{kb['options']['no']}\""
 
+def get_feedback_question(language: str) -> str:
+    """Get the feedback question"""
+    kb = MAHA_JAL_KNOWLEDGE_BASE[language]
+    if language == "mr":
+        return f"प्रश्न क्र. २.२: {kb['feedback_question']}\n\nउत्तर १ - \"{kb['options']['yes']}\"\nउत्तर २ - \"{kb['options']['no']}\""
+    else:
+        return f"Question 2.2: {kb['feedback_question']}\n\nAnswer 1: \"{kb['options']['yes']}\"\nAnswer 2: \"{kb['options']['no']}\""
+
+def get_rating_request(language: str) -> str:
+    """Get the rating request message"""
+    kb = MAHA_JAL_KNOWLEDGE_BASE[language]
+    if language == "mr":
+        return f"{kb['rating_question']}\n\n{kb['rating_request']}"
+    else:
+        return f"{kb['rating_question']}\n\n{kb['rating_request']}"
+
 def get_yes_response(language: str) -> str:
     """Get the response for 'YES' answer"""
     kb = MAHA_JAL_KNOWLEDGE_BASE[language]
@@ -235,6 +315,11 @@ def process_maha_jal_query(input_text: str, session_id: str, language: str) -> s
     session_state = USER_SESSION_STATE[session_id]
     response_type = detect_yes_no_response(input_text, language)
     
+    # Handle feedback question flow
+    if "feedback" in input_text.lower() or "अभिप्राय" in input_text.lower():
+        session_state["stage"] = "feedback_question"
+        return get_feedback_question(language)
+    
     # Handle initial stage or direct questions
     if session_state["stage"] == "initial" or any(keyword in input_text.lower() for keyword in 
         ["register", "grievance", "complaint", "तक्रार", "नोंदवू", "शिकायत"]):
@@ -243,12 +328,23 @@ def process_maha_jal_query(input_text: str, session_id: str, language: str) -> s
             session_state["stage"] = "registration_info"
             return get_yes_response(language)
         elif response_type == "no":
-            session_state["stage"] = "completed"
-            return get_no_response(language)
+            session_state["stage"] = "feedback_question"
+            return get_feedback_question(language)
         else:
             # First time or unclear response
             session_state["stage"] = "awaiting_response"
             return get_initial_response(language)
+    
+    # Handle feedback question stage
+    elif session_state["stage"] == "feedback_question":
+        if response_type == "yes":
+            session_state["stage"] = "rating_request"
+            return get_rating_request(language)
+        elif response_type == "no":
+            session_state["stage"] = "completed"
+            return MAHA_JAL_KNOWLEDGE_BASE[language]['no_response']
+        else:
+            return MAHA_JAL_KNOWLEDGE_BASE[language]['help_text']
     
     # Handle awaiting response stage
     elif session_state["stage"] == "awaiting_response":
@@ -256,8 +352,8 @@ def process_maha_jal_query(input_text: str, session_id: str, language: str) -> s
             session_state["stage"] = "registration_info"
             return get_yes_response(language)
         elif response_type == "no":
-            session_state["stage"] = "completed"
-            return get_no_response(language)
+            session_state["stage"] = "feedback_question"
+            return get_feedback_question(language)
         else:
             return MAHA_JAL_KNOWLEDGE_BASE[language]['help_text']
     
@@ -272,15 +368,17 @@ async def lifespan(app: FastAPI):
     print("🚀 STARTING MAHA-JAL SAMADHAN CHATBOT BACKEND")
     print("=" * 60)
     
-    print("🌐 Languages supported: English, Marathi")
+    print("🌏 Languages supported: English, Marathi")
     print("🎯 System: Maha-Jal Samadhan Public Grievance Redressal")
-    print("💡 Mode: Hardcoded Q&A (No RAG/Model required)")
+    print("💡 Mode: Hardcoded Q&A with Rating System")
+    print("⭐ Features: 5-star rating system with CSV export")
     
     print("=" * 60)
     print("🎯 Backend ready! Access the API at:")
     print(" • Docs: http://localhost:8000/docs")
     print(" • Health: http://localhost:8000/health/")
     print(" • Status: http://localhost:8000/status/")
+    print(" • Ratings CSV: http://localhost:8000/ratings/export")
     print("=" * 60)
     
     yield
@@ -290,9 +388,9 @@ async def lifespan(app: FastAPI):
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="Maha-Jal Samadhan Chatbot Backend",
-    description="Public Grievance Redressal System Chatbot with bilingual support (English, Marathi)",
-    version="2.0.0",
+    title="Maha-Jal Samadhan Chatbot Backend with Rating System",
+    description="Public Grievance Redressal System Chatbot with bilingual support and 5-star rating system",
+    version="2.1.0",
     lifespan=lifespan
 )
 
@@ -325,13 +423,14 @@ async def root():
         uptime = time.time() - SYSTEM_STATUS["startup_time"]
         return {
             "message": "Maha-Jal Samadhan Chatbot Backend is running",
-            "system": "Public Grievance Redressal System",
-            "mode": "Hardcoded Q&A System",
-            "version": "2.0.0",
+            "system": "Public Grievance Redressal System with Rating",
+            "mode": "Hardcoded Q&A System with 5-star rating",
+            "version": "2.1.0",
             "uptime_seconds": round(uptime, 2),
             "system_status": {
                 "active_sessions": len(CHAT_HISTORY),
                 "total_queries": SYSTEM_STATUS["total_queries"],
+                "total_ratings": len(RATINGS_DATA),
                 "supported_languages": SYSTEM_STATUS["supported_languages"]
             }
         }
@@ -429,6 +528,145 @@ async def process_query(request: QueryRequest):
             content={"reply": "An error occurred while processing your query. Please try again later."}
         )
 
+@app.post("/rating/")
+async def submit_rating(request: RatingRequest):
+    """Submit user rating for service quality"""
+    try:
+        # Validate rating
+        if request.rating not in [1, 2, 3, 4, 5]:
+            error_msg = {
+                'en': "The information you have entered is invalid. Please try again.",
+                'mr': "आपण दिलेली माहिती अवैध आहे. कृपया पुन्हा प्रयत्न करा."
+            }
+            return JSONResponse(
+                status_code=400,
+                content={"reply": error_msg.get(request.language, error_msg['en'])}
+            )
+        
+        # Generate session ID if not provided
+        session_id = request.session_id or generate_session_id()
+        
+        # Save rating data
+        save_rating_data(
+            rating=request.rating,
+            session_id=session_id,
+            language=request.language,
+            grievance_id=request.grievance_id,
+            feedback_text=request.feedback_text
+        )
+        
+        # Get rating label
+        rating_label = RATING_LABELS[request.language][request.rating]
+        
+        # Prepare response message
+        thank_you_msg = MAHA_JAL_KNOWLEDGE_BASE[request.language]['rating_thank_you']
+        
+        response_msg = f"{thank_you_msg}\n\nYour Rating: {request.rating}/5 ({rating_label})"
+        if request.language == "mr":
+            response_msg = f"{thank_you_msg}\n\nआपले रेटिंग: {request.rating}/५ ({rating_label})"
+        
+        # Add to chat history
+        user_msg = f"Rating: {request.rating}/5"
+        add_to_chat_history(session_id, user_msg, response_msg, request.language)
+        
+        return {
+            "reply": response_msg,
+            "rating": request.rating,
+            "rating_label": rating_label,
+            "language": request.language,
+            "session_id": session_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Rating submission error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"reply": "An error occurred while submitting your rating. Please try again later."}
+        )
+
+@app.get("/ratings/export")
+async def export_ratings():
+    """Export ratings data as CSV file"""
+    try:
+        if not RATINGS_DATA:
+            return JSONResponse(
+                status_code=404,
+                content={"error": "No ratings data available for export"}
+            )
+        
+        # Create CSV content
+        output = io.StringIO()
+        fieldnames = ["timestamp", "session_id", "rating", "rating_label", "language", "grievance_id", "feedback_text", "ip_address"]
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        
+        writer.writeheader()
+        for rating_data in RATINGS_DATA:
+            writer.writerow(rating_data)
+        
+        # Prepare response
+        csv_content = output.getvalue()
+        output.close()
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"maha_jal_ratings_{timestamp}.csv"
+        
+        return StreamingResponse(
+            io.BytesIO(csv_content.encode('utf-8')),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except Exception as e:
+        logger.error(f"CSV export error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Failed to export ratings: {str(e)}"}
+        )
+
+@app.get("/ratings/stats")
+async def get_rating_stats():
+    """Get rating statistics"""
+    try:
+        if not RATINGS_DATA:
+            return {
+                "total_ratings": 0,
+                "average_rating": 0,
+                "rating_distribution": {},
+                "language_distribution": {}
+            }
+        
+        # Calculate statistics
+        total_ratings = len(RATINGS_DATA)
+        ratings = [entry["rating"] for entry in RATINGS_DATA]
+        average_rating = sum(ratings) / total_ratings if ratings else 0
+        
+        # Rating distribution
+        rating_distribution = {}
+        for i in range(1, 6):
+            rating_distribution[str(i)] = ratings.count(i)
+        
+        # Language distribution
+        languages = [entry["language"] for entry in RATINGS_DATA]
+        language_distribution = {}
+        for lang in set(languages):
+            language_distribution[lang] = languages.count(lang)
+        
+        return {
+            "total_ratings": total_ratings,
+            "average_rating": round(average_rating, 2),
+            "rating_distribution": rating_distribution,
+            "language_distribution": language_distribution,
+            "latest_ratings": RATINGS_DATA[-10:] if len(RATINGS_DATA) >= 10 else RATINGS_DATA
+        }
+        
+    except Exception as e:
+        logger.error(f"Rating stats error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Failed to get rating statistics: {str(e)}"}
+        )
+
 @app.get("/health/")
 async def health_check():
     """System health check endpoint"""
@@ -444,6 +682,7 @@ async def health_check():
                 "total_queries": SYSTEM_STATUS["total_queries"],
                 "successful_queries": SYSTEM_STATUS["successful_queries"],
                 "failed_queries": SYSTEM_STATUS["failed_queries"],
+                "total_ratings": len(RATINGS_DATA),
                 "supported_languages": SYSTEM_STATUS["supported_languages"]
             }
         }
@@ -475,7 +714,7 @@ async def get_suggestions(language: str = "en"):
             "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये आपण तक्रार नोंदवू इच्छिता का?",
             "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये नोंदविण्यात आलेली तक्रार आहे का?",
             "आपण नोंदविलेल्या तक्रारीची स्थिती तपासू इच्छिता का?",
-            "आपल्या तक्रारीच्या निराकरणाबाबत अभिप्राय द्याल का?"
+            "आपल्या तक्रारीच्या निराकरणाबाबत अभिप्राय द्यायला इच्छिता का?"
         ]
     }
 
@@ -485,7 +724,6 @@ async def get_suggestions(language: str = "en"):
         "language": language,
         "total": len(suggestions)
     }
-
 
 @app.get("/languages/")
 async def get_supported_languages():
