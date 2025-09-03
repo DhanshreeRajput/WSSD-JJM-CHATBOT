@@ -835,7 +835,6 @@
                 grievance_id_prompt: "Please enter your Grievance ID (For example: \"G-12safeg7678\")",
                 invalid_grievance_id: "The Grievance ID you have entered is incorrect or invalid. Please enter the correct Grievance ID to proceed.",
                 status_prefix: "The current status of your Grievance is as follows:",
-                rating_prompt: "With reference to the resolution of your grievance on the Maha-Jal Samadhan Public Grievance Redressal System, how would you rate the quality of service on a scale of 1 to 5, where: 1 = Unsatisfactory and 5 = Satisfactory?",
                 rating_request: "Please provide your rating between 1 and 5:",
                 invalid_input: "The information you have entered is invalid. Please try again.",
                 thank_you: "Thank you for using the Maha-Jal Samadhan Public Grievance Redressal System.",
@@ -870,7 +869,6 @@
                 grievance_id_prompt: "कृपया आपण आपल्या तक्रारीचा \"Grievance ID\" म्हणजेच तक्रार नोंदणी क्रमांक दाखल/नमूद करा. (उदाहरणार्थ - \"G-12safeg7678\")",
                 invalid_grievance_id: "आपण आपल्या तक्रारीचा \"Grievance ID\" म्हणजेच तक्रार नोंदणी क्रमांक चुकीचा दाखल केला आहे. कृपया योग्य \"Grievance ID\" म्हणजेच तक्रार नोंदणी क्रमांक दाखल/नमूद करा",
                 status_prefix: "आपल्या तक्रारीची सद्यस्थिती पुढीलप्रमाणे आहे:",
-                rating_prompt: "महा-जल समाधान' सार्वजनिक तक्रार निवारण प्रणालीवर आपल्या तक्रारीच्या निराकरणासंदर्भात, सेवा गुणवत्तेच्या दृष्टीने आपण १ ते ५ या श्रेणीमध्ये किती गुण द्यायला इच्छिता? १ म्हणजे 'असमाधानकारक' आणि ५ म्हणजे 'समाधानकारक'.",
                 rating_request: "कृपया आपल्यादवारे देण्यात आलेले गुण १ ते ५ मध्ये देण्यात यावे:",
                 invalid_input: "आपण दिलेली माहिती अवैध आहे. कृपया पुन्हा प्रयत्न करा.",
                 thank_you: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीचा वापर केल्याबद्दल आपले धन्यवाद.",
@@ -1023,7 +1021,7 @@
             
             messageDiv.innerHTML = `
                 <div class="message-content">
-                    ${content}
+                    
                     <div class="rating-container">
                         <div class="rating-title">Rate our service quality</div>
                         <div class="stars-container" id="starsContainer">

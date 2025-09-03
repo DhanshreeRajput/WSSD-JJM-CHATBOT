@@ -97,8 +97,6 @@ MAHA_JAL_KNOWLEDGE_BASE = {
         "initial_question": "Would you like to register a Grievance on the Maha-Jal Samadhan Public Grievance Redressal System?",
         "check_existing_question": "Has a Grievance already been registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
         "feedback_question": "Would you like to provide feedback regarding the resolution of your grievance addressed through the Maha-Jal Samadhan Public Grievance Redressal System?",
-        "rating_question": "With reference to the resolution of your grievance on the Maha-Jal Samadhan Public Grievance Redressal System, how would you rate the quality of service on a scale of 1 to 5, where: 1 = Unsatisfactory and 5 = Satisfactory?",
-        "rating_request": "Please provide your rating between 1 and 5:",
         "invalid_rating": "The information you have entered is invalid. Please try again.",
         "rating_thank_you": "Thank you for your feedback. Your rating has been recorded.",
         "options": {"yes": "YES", "no": "NO"},
@@ -123,8 +121,6 @@ MAHA_JAL_KNOWLEDGE_BASE = {
         "initial_question": "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये आपण तक्रार नोंदवू इच्छिता का?",
         "check_existing_question": "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये नोंदविण्यात आलेली तक्रार आहे का?",
         "feedback_question": "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीद्वारे सोडविण्यात आलेल्या आपल्या तक्रारीच्या निराकरणाबाबत अभिप्राय द्यायला इच्छिता का?",
-        "rating_question": "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर आपल्या तक्रारीच्या निराकरणासंदर्भात, सेवा गुणवत्तेच्या दृष्टीने आपण १ ते ५ या श्रेणीमध्ये किती गुण द्यायला इच्छिता? १ म्हणजे 'असमाधानकारक' आणि ५ म्हणजे 'समाधानकारक'.",
-        "rating_request": "कृपया आपल्यादवारे देण्यात आलेले गुण १ ते ५ मध्ये देण्यात यावे:",
         "invalid_rating": "आपण दिलेली माहिती अवैध आहे. कृपया पुन्हा प्रयत्न करा.",
         "rating_thank_you": "आपल्या अभिप्रायाबद्दल धन्यवाद. आपले रेटिंग नोंदवले गेले आहे.",
         "options": {"yes": "होय", "no": "नाही"},
@@ -368,7 +364,7 @@ async def lifespan(app: FastAPI):
     print("🚀 STARTING MAHA-JAL SAMADHAN CHATBOT BACKEND")
     print("=" * 60)
     
-    print("🌏 Languages supported: English, Marathi")
+    print("🌐 Languages supported: English, Marathi")
     print("🎯 System: Maha-Jal Samadhan Public Grievance Redressal")
     print("💡 Mode: Hardcoded Q&A with Rating System")
     print("⭐ Features: 5-star rating system with CSV export")
@@ -394,15 +390,24 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware - IMPORTANT for PHP frontend
+# CORS middleware - CRITICAL FIX
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # In production, specify your actual domain
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["*"]
 )
+
+@app.middleware("http")
+async def add_cors_header(request: Request, call_next):
+    """Additional CORS handling"""
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 @app.options("/{full_path:path}")
 async def preflight_handler(request: Request, full_path: str):
