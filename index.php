@@ -809,7 +809,7 @@
                 <div class="quick-actions">
                     <button class="quick-action-btn" id="restartBtn">Restart</button>
                     <button class="quick-action-btn" id="clearChatBtn">Clear Chat</button>
-                    <button class="export-ratings-btn" id="exportRatingsBtn">Export Ratings</button>
+                    <!-- <button class="export-ratings-btn" id="exportRatingsBtn">Export Ratings</button>-->
                 </div>
             </div>
         </div>
