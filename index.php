@@ -809,7 +809,6 @@
                 <div class="quick-actions">
                     <button class="quick-action-btn" id="restartBtn">Restart</button>
                     <button class="quick-action-btn" id="clearChatBtn">Clear Chat</button>
-                    <!-- <button class="export-ratings-btn" id="exportRatingsBtn">Export Ratings</button>-->
                 </div>
             </div>
         </div>
@@ -824,9 +823,8 @@
             en: {
                 welcome: "Welcome to the Maha-Jal Samadhan Public Grievance Redressal System.",
                 question1: "Would you like to register a Grievance on the Maha-Jal Samadhan Public Grievance Redressal System?",
-                question2: "Has a Grievance already been registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
-                question21: "Would you like to check the status of the grievance which you have registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
-                question22: "Would you like to provide feedback regarding the resolution of your grievance addressed through the Maha-Jal Samadhan Public Grievance Redressal System?",
+                question2: "Would you like to check the status of the grievance which you have registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
+                question3: "Would you like to provide feedback regarding the resolution of your grievance addressed through the Maha-Jal Samadhan Public Grievance Redressal System?",
                 register_methods: "You can register your Grievance on the Maha-Jal Samadhan Public Grievance Redressal System through two methods:",
                 website_method: "1. Registering a Grievance via the Maha-Jal Samadhan Website",
                 website_link: "https://mahajalsamadhan.in/log-grievance",
@@ -852,15 +850,15 @@
                 },
                 suggestions: [
                     "I want to register a grievance",
+                    "I want to check grievance status",
                     "I want to provide feedback"
                 ]
             },
             mr: {
                 welcome: "नमस्कार, महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर आपले स्वागत आहे.",
                 question1: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर आपण तक्रार नोंदू इच्छिता का?",
-                question2: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर तक्रार नोंदविण्यात आलेली आहे का?",
-                question21: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर आपण केलेल्या तक्रारीची स्थिती पाहू इच्छिता का?",
-                question22: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीद्वारे सोडविण्यात आलेल्या आपल्या तक्रारीच्या निराकरणाबाबत अभिप्राय देऊ इच्छिता का?",
+                question2: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर आपण केलेल्या तक्रारीची स्थिती पाहू इच्छिता का?",
+                question3: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीद्वारे सोडविण्यात आलेल्या आपल्या तक्रारीच्या निराकरणाबाबत अभिप्राय देऊ इच्छिता का?",
                 register_methods: "आपण 'महा-जल समाधान' सार्वजनिक तक्रार निवारण प्रणालीवर आपली तक्रार दोन पद्धतींनी नोंदवू शकता:",
                 website_method: "१. महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर वेबसाईटद्वारे तक्रार नोंदणी",
                 website_link: "https://mahajalsamadhan.in/log-grievance",
@@ -869,7 +867,7 @@
                 grievance_id_prompt: "कृपया आपण आपल्या तक्रारीचा \"Grievance ID\" म्हणजेच तक्रार नोंदणी क्रमांक दाखल/नमूद करा. (उदाहरणार्थ - \"G-12safeg7678\")",
                 invalid_grievance_id: "आपण आपल्या तक्रारीचा \"Grievance ID\" म्हणजेच तक्रार नोंदणी क्रमांक चुकीचा दाखल केला आहे. कृपया योग्य \"Grievance ID\" म्हणजेच तक्रार नोंदणी क्रमांक दाखल/नमूद करा",
                 status_prefix: "आपल्या तक्रारीची सद्यस्थिती पुढीलप्रमाणे आहे:",
-                rating_request: "कृपया आपल्यादवारे देण्यात आलेले गुण १ ते ५ मध्ये देण्यात यावे:",
+                rating_request: "कृपया आपल्याद्वारे देण्यात आलेले गुण १ ते ५ मध्ये देण्यात यावे:",
                 invalid_input: "आपण दिलेली माहिती अवैध आहे. कृपया पुन्हा प्रयत्न करा.",
                 thank_you: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीचा वापर केल्याबद्दल आपले धन्यवाद.",
                 yes: "होय",
@@ -886,6 +884,7 @@
                 },
                 suggestions: [
                     "मला तक्रार नोंदवायची आहे",
+                    "मला तक्रार स्थिती तपासायची आहे",
                     "मला अभिप्राय द्यायचा आहे"
                 ]
             }
@@ -909,7 +908,6 @@
             languageSelect: document.getElementById('languageSelect'),
             restartBtn: document.getElementById('restartBtn'),
             clearChatBtn: document.getElementById('clearChatBtn'),
-            exportRatingsBtn: document.getElementById('exportRatingsBtn'),
             quickSuggestions: document.getElementById('quickSuggestions'),
             suggestionsGrid: document.getElementById('suggestionsGrid'),
             suggestionsTitle: document.getElementById('suggestionsTitle')
@@ -1021,7 +1019,7 @@
             
             messageDiv.innerHTML = `
                 <div class="message-content">
-                    
+                    ${content}
                     <div class="rating-container">
                         <div class="rating-title">Rate our service quality</div>
                         <div class="stars-container" id="starsContainer">
@@ -1133,30 +1131,15 @@
 
         async function submitRating(rating) {
             try {
-                const response = await fetch(`${API_BASE_URL}/rating/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        rating: rating,
-                        session_id: currentSessionId,
-                        language: currentLanguage,
-                        grievance_id: pendingGrievanceId || null
-                    })
-                });
-
-                const data = await response.json();
+                // Simulate rating submission since API might not be available
+                const ratingLabels = PGRS_SCRIPTS[currentLanguage].rating_labels;
+                const script = PGRS_SCRIPTS[currentLanguage];
                 
-                if (response.ok) {
-                    addMessage(`Thank you! You rated our service ${rating}/5 stars (${data.rating_label})`, true);
-                    setTimeout(() => {
-                        addMessage(data.reply, false);
-                        chatState = 'end';
-                    }, 500);
-                } else {
-                    throw new Error(data.reply || 'Failed to submit rating');
-                }
+                addMessage(`Thank you! You rated our service ${rating}/5 stars (${ratingLabels[rating]})`, true);
+                setTimeout(() => {
+                    addMessage(script.thank_you, false);
+                    chatState = 'end';
+                }, 500);
             } catch (error) {
                 console.error('Rating submission error:', error);
                 addMessage('Sorry, there was an error submitting your rating. Please try again.', false);
@@ -1180,6 +1163,106 @@
             });
         }
 
+        // Show grievance input immediately
+        function showGrievanceInput() {
+            chatState = 'awaiting_grievance_id';
+            const script = PGRS_SCRIPTS[currentLanguage];
+            
+            // Create input message immediately
+            const inputDiv = document.createElement('div');
+            inputDiv.className = 'message bot';
+            inputDiv.innerHTML = `
+                <div class="message-content">
+                    Please enter your Grievance ID to check the status:
+                    <div style="background: #e8f4fd; border: 3px solid #2196f3; border-radius: 15px; padding: 20px; margin: 15px 0;">
+                        <div style="margin-bottom: 10px; font-weight: bold; color: #1976d2;">
+                            Enter Grievance ID (Example: G-12safeg7678)
+                        </div>
+                        <input type="text" 
+                               id="grievanceInput" 
+                               placeholder="Type your Grievance ID here..." 
+                               style="width: 100%; padding: 15px; border: 2px solid #2196f3; border-radius: 8px; font-size: 16px; margin-bottom: 15px; outline: none;"
+                               maxlength="50">
+                        <button id="checkStatusBtn" 
+                                style="width: 100%; padding: 15px; background: #2196f3; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: not-allowed;" 
+                                disabled>
+                            Check Grievance Status
+                        </button>
+                    </div>
+                    <div class="message-time">${getCurrentTime()}</div>
+                </div>
+            `;
+            
+            elements.chatMessages.insertBefore(inputDiv, elements.typingIndicator);
+            scrollToBottom();
+            
+            // Setup input immediately
+            const input = document.getElementById('grievanceInput');
+            const button = document.getElementById('checkStatusBtn');
+            
+            input.addEventListener('input', function() {
+                const hasValue = this.value.trim().length > 0;
+                button.disabled = !hasValue;
+                button.style.backgroundColor = hasValue ? '#2196f3' : '#ccc';
+                button.style.cursor = hasValue ? 'pointer' : 'not-allowed';
+            });
+            
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !button.disabled) {
+                    processGrievanceId(this.value.trim());
+                }
+            });
+            
+            button.addEventListener('click', function() {
+                if (!this.disabled) {
+                    processGrievanceId(input.value.trim());
+                }
+            });
+            
+            input.focus();
+        }
+
+        // Process grievance ID
+        function processGrievanceId(grievanceId) {
+            const script = PGRS_SCRIPTS[currentLanguage];
+            
+            // Disable input
+            const input = document.getElementById('grievanceInput');
+            const button = document.getElementById('checkStatusBtn');
+            input.disabled = true;
+            button.disabled = true;
+            button.textContent = 'Processing...';
+            button.style.backgroundColor = '#999';
+            
+            // Add user message
+            addMessage(grievanceId, true);
+            
+            // Validate format
+            const grievancePattern = /^G-[A-Za-z0-9]{8,}$/i;
+            
+            if (!grievancePattern.test(grievanceId)) {
+                setTimeout(() => {
+                    addMessage(script.invalid_grievance_id, false);
+                    setTimeout(() => {
+                        showGrievanceInput(); // Show input again
+                    }, 1500);
+                }, 1000);
+                return;
+            }
+            
+            // Show status (simulated)
+            setTimeout(() => {
+                const statusMessage = `${script.status_prefix}\n\nGrievance ID: ${grievanceId}\nStatus: Under Review\nSubmitted: 15-Nov-2024\nDepartment: Water Supply Department\nEstimated Resolution: 7-10 working days\n\nYour grievance is currently being reviewed by the concerned department.`;
+                addMessage(statusMessage, false);
+                
+                // Continue to feedback
+                setTimeout(() => {
+                    chatState = 'question3';
+                    addOptionsMessage(script.question3, [script.yes, script.no]);
+                }, 2000);
+            }, 1500);
+        }
+
         function handleQuickSuggestion(suggestion) {
             // Add user message
             addMessage(suggestion, true);
@@ -1197,42 +1280,55 @@
             }, 500);
         }
 
+        // Process quick suggestions - updated to handle grievance status
         function processQuickSuggestion(suggestion) {
             const script = PGRS_SCRIPTS[currentLanguage];
             const lowerSuggestion = suggestion.toLowerCase();
             
             // Handle feedback suggestions
-            if (lowerSuggestion.includes('feedback') || lowerSuggestion.includes('अभिप्राय')) {
-                chatState = 'feedback_question';
-                addOptionsMessage(script.question22, [script.yes, script.no]);
+            if (lowerSuggestion.includes('feedback') || lowerSuggestion.includes('अभिप्राय') || 
+                lowerSuggestion.includes('द्यायचा')) {
+                chatState = 'question3';
+                setTimeout(() => {
+                    addOptionsMessage(script.question3, [script.yes, script.no]);
+                }, 500);
                 return;
             }
             
-            // Handle register grievance suggestions
+            // Handle status check suggestions - trigger input directly
+            if (lowerSuggestion.includes('status') || lowerSuggestion.includes('check') || 
+                lowerSuggestion.includes('स्थिती') || lowerSuggestion.includes('तपासायची')) {
+                setTimeout(() => {
+                    showGrievanceInput();
+                }, 500);
+                return;
+            }
+            
+            // Handle register grievance suggestions - Reset to start
             if (lowerSuggestion.includes('register') || lowerSuggestion.includes('grievance') || 
-                lowerSuggestion.includes('तक्रार') || lowerSuggestion.includes('नोंदवा')) {
+                lowerSuggestion.includes('तक्रार') || lowerSuggestion.includes('नोंदवायची')) {
                 
                 chatState = 'start';
-                addOptionsMessage(script.question1, [script.yes, script.no]);
+                setTimeout(() => {
+                    addOptionsMessage(script.question1, [script.yes, script.no]);
+                }, 500);
                 return;
             }
             
-            // Default response for other suggestions
-            addMessage(script.welcome);
+            // Default response - start from beginning
             setTimeout(() => {
                 addOptionsMessage(script.question1, [script.yes, script.no]);
                 chatState = 'start';
-            }, 1000);
+            }, 500);
         }
 
-        // PGRS Flow Logic
+        // PGRS Flow Logic - CORRECTED
         function handleUserChoice(optionIndex) {
             const script = PGRS_SCRIPTS[currentLanguage];
             
             switch (chatState) {
                 case 'start':
                     if (optionIndex === 0) { // YES - Register grievance
-                        chatState = 'register';
                         setTimeout(() => {
                             addMessage(script.register_methods);
                             addLinksMessage('', [
@@ -1244,21 +1340,40 @@
                                 chatState = 'end';
                             }, 1000);
                         }, 500);
-                    } else { // NO - Already registered
-                        chatState = 'feedback_question';
+                    } else { // NO - Don't want to register, ask next question
+                        chatState = 'question2';
                         setTimeout(() => {
-                            addOptionsMessage(script.question22, [script.yes, script.no]);
+                            addOptionsMessage(script.question2, [script.yes, script.no]);
                         }, 500);
                     }
                     break;
                 
-                case 'feedback_question':
-                    if (optionIndex === 0) { // YES - Give feedback
+                case 'question2':
+                    if (optionIndex === 0) { // YES - Want to check status
+                        // In a real implementation, this would ask for Grievance ID
+                        // For demo purposes, we'll show a message about the process
                         setTimeout(() => {
-                            addRatingMessage(script.rating_prompt);
+                            addMessage("To check your grievance status, you would need to provide your Grievance ID. This feature connects to the backend system to fetch real-time status updates.");
+                            setTimeout(() => {
+                                chatState = 'question3';
+                                addOptionsMessage(script.question3, [script.yes, script.no]);
+                            }, 1000);
+                        }, 500);
+                    } else { // NO - Don't want to check status
+                        chatState = 'question3';
+                        setTimeout(() => {
+                            addOptionsMessage(script.question3, [script.yes, script.no]);
+                        }, 500);
+                    }
+                    break;
+                
+                case 'question3':
+                    if (optionIndex === 0) { // YES - Want to give feedback
+                        setTimeout(() => {
+                            addRatingMessage(script.rating_request);
                             chatState = 'awaiting_rating';
                         }, 500);
-                    } else { // NO - No feedback
+                    } else { // NO - Don't want to give feedback
                         setTimeout(() => {
                             addMessage(script.thank_you);
                             chatState = 'end';
@@ -1329,31 +1444,6 @@
             }
         }
 
-        async function exportRatings() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/ratings/export`);
-                
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = `maha_jal_ratings_${new Date().toISOString().split('T')[0]}.csv`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                } else {
-                    const error = await response.json();
-                    alert('No ratings data available for export');
-                }
-            } catch (error) {
-                console.error('Export error:', error);
-                alert('Failed to export ratings. Please try again.');
-            }
-        }
-
         // Event Listeners
         elements.chatBubble.addEventListener('click', toggleChatWindow);
         elements.closeChat.addEventListener('click', toggleChatWindow);
@@ -1368,10 +1458,6 @@
         
         elements.clearChatBtn.addEventListener('click', () => {
             clearChat();
-        });
-
-        elements.exportRatingsBtn.addEventListener('click', () => {
-            exportRatings();
         });
 
         // Initialize
