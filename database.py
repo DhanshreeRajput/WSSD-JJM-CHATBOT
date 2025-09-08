@@ -53,115 +53,50 @@ class DatabaseManager:
             logger.info("🔒 Database connection pool closed")
 
     async def get_grievance_status(self, grievance_id: str) -> Optional[Dict[str, Any]]:
-        """Get grievance status and details from your actual database schema"""
+        """Get grievance status and details from the database"""
         if not self.pool:
             logger.error("Database pool not initialized")
             return None
             
         try:
+            logger.info(f"Attempting to fetch grievance status for ID: {grievance_id}")
             async with self.pool.acquire() as connection:
-                # Query using your actual table structure with typo fix
-                query = """
-                    SELECT 
-                        g.id,
-                        g.grievance_unique_number,
-                        g.citizen_name,
-                        g.mobile_number,
-                        g.landline_number,
-                        g.email,
-                        g.address,
-                        g.pincode,
-                        g.grievance_remark,
-                        g.grievance_status,
-                        g.rating,
-                        g.citizen_feedback,
-                        g.resolved_date,
-                        g.closed_date,
-                        g.created_at,
-                        g.updated_at,
-                        gc.grievance_name as category_name,
-                        sgc.sub_grievance_name as sub_category_name,
-                        d.district_name,
-                        b.block_name,
-                        gp.grampanchayat_name,
-                        v.village_name
-                    FROM grievances g
-                    LEFT JOIN grievance_categories gc ON g.grievance_type_id = gc.id
-                    LEFT JOIN sub_grievance_categories sgc ON g.subgrievance_type_id = sgc.id
-                    LEFT JOIN districts d ON g.district_id = d.id
-                    LEFT JOIN blocks b ON g.block_id = b.id
-                    LEFT JOIN grampanchayats gp ON g.grampanchayayt_id = gp.id
-                    LEFT JOIN villages v ON g.village_id = v.id
-                    WHERE UPPER(g.grievance_unique_number) = UPPER($1) 
-                       OR g.id::text = $1 
-                       OR UPPER(g.grievance_unique_number) LIKE '%' || UPPER($1) || '%'
-                    ORDER BY g.created_at DESC
-                    LIMIT 1
-                """
+                # Test database connection first
+                await connection.fetchval('SELECT 1')
+                logger.info("Database connection is working")
                 
+                # Get grievance details
+                query = """
+SELECT 
+    grievance_id,
+    grievance_status,
+    grievance_logged_date,
+    organization_name,
+    grievance_name,
+    sub_grievance_name,
+    district_name,
+    block_name,
+    grampanchayat_name,
+    village_name,
+    resolved_date,
+    resolved_user_name,
+    closed_date,
+    verified_user_name
+FROM grievance_detail2
+WHERE grievance_id = $1
+   OR grievance_id LIKE '%' || $1 || '%'
+"""
+                
+                # Execute query with cleaned grievance ID
                 result = await connection.fetchrow(query, grievance_id.strip())
                 
                 if result:
-                    # Get tracking information from grievance_resolve_tracks
-                    tracks_query = """
-                        SELECT 
-                            grt.grievance_status,
-                            grt.grievance_resolved_remark,
-                            grt.grievance_reject_reason,
-                            grt.start_date_time,
-                            grt.end_date_time,
-                            grt.created_at,
-                            grt.updated_at,
-                            grt.grievance_belongs_to
-                        FROM grievance_resolve_tracks grt
-                        WHERE grt.grievance_id = $1
-                        ORDER BY grt.created_at DESC
-                        LIMIT 10
-                    """
+                    logger.info(f"Found grievance data: {dict(result)}")
+                    return dict(result)
                     
-                    tracks = await connection.fetch(tracks_query, result['id'])
-                    
-                    return {
-                        'grievance_id': str(result['id']),
-                        'grievance_number': result['grievance_unique_number'] or f"GR{result['id']}",
-                        'title': result['sub_category_name'] or result['category_name'] or 'General Grievance',
-                        'description': result['grievance_remark'] or 'No description available',
-                        'status': result['grievance_status'] or 'Pending',
-                        'priority': 'Normal',  # Not available in your schema
-                        'category': result['category_name'] or 'General',
-                        'sub_category': result['sub_category_name'] or 'N/A',
-                        'user_name': result['citizen_name'] or 'N/A',
-                        'user_email': result['email'] or 'N/A',
-                        'user_phone': result['mobile_number'] or 'N/A',
-                        'landline': result['landline_number'] or 'N/A',
-                        'address': result['address'] or 'N/A',
-                        'pincode': result['pincode'] or 'N/A',
-                        'district': result['district_name'] or 'N/A',
-                        'block': result['block_name'] or 'N/A',
-                        'grampanchayat': result['grampanchayat_name'] or 'N/A',
-                        'village': result['village_name'] or 'N/A',
-                        'rating': result['rating'],
-                        'feedback': result['citizen_feedback'],
-                        'resolved_date': result['resolved_date'].isoformat() if result['resolved_date'] else None,
-                        'closed_date': result['closed_date'].isoformat() if result['closed_date'] else None,
-                        'created_at': result['created_at'].isoformat() if result['created_at'] else None,
-                        'updated_at': result['updated_at'].isoformat() if result['updated_at'] else None,
-                        'tracking_history': [
-                            {
-                                'status': track['grievance_status'] or 'N/A',
-                                'comments': track['grievance_resolved_remark'] or track['grievance_reject_reason'] or 'No comments',
-                                'belongs_to': track['grievance_belongs_to'] or 'N/A',
-                                'start_date': track['start_date_time'].isoformat() if track['start_date_time'] else None,
-                                'end_date': track['end_date_time'].isoformat() if track['end_date_time'] else None,
-                                'date': track['created_at'].isoformat() if track['created_at'] else None,
-                                'updated_date': track['updated_at'].isoformat() if track['updated_at'] else None
-                            }
-                            for track in tracks
-                        ]
-                    }
-                
+                logger.warning(f"No grievance found with ID: {grievance_id}")
                 return None
-                
+                    
         except Exception as e:
             logger.error(f"Database error while fetching grievance {grievance_id}: {e}")
             return None

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, ValidationError
 from typing import Optional
 import time
 import os
@@ -221,6 +221,14 @@ def add_to_chat_history(session_id: str, user_msg: str, bot_msg: str, language: 
 def save_rating_data(rating: int, session_id: str, language: str, grievance_id: str = None, feedback_text: str = None):
     """Save rating data for CSV export with proper UTF-8 handling"""
     try:
+        # Create ratings directory if it doesn't exist
+        ratings_dir = os.path.join(os.path.dirname(__file__), 'ratings_data')
+        os.makedirs(ratings_dir, exist_ok=True)
+        
+        # Prepare CSV file path
+        csv_path = os.path.join(ratings_dir, 'ratings_log.csv')
+        
+        # Prepare rating entry
         rating_entry = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "session_id": session_id,
@@ -229,12 +237,29 @@ def save_rating_data(rating: int, session_id: str, language: str, grievance_id: 
             "language": language,
             "grievance_id": grievance_id or "N/A",
             "feedback_text": feedback_text or "N/A",
-            "ip_address": "N/A"
+            "ip_address": "N/A"  # Can be extended later to capture real IP
         }
+        
+        # Append to CSV file
+        is_new_file = not os.path.exists(csv_path)
+        
+        with open(csv_path, mode='a', newline='', encoding='utf-8-sig') as f:
+            writer = csv.DictWriter(f, fieldnames=rating_entry.keys())
+            
+            # Write headers if this is a new file
+            if is_new_file:
+                writer.writeheader()
+                
+            writer.writerow(rating_entry)
+            
+        # Store in memory and log
         RATINGS_DATA.append(rating_entry)
-        logger.info(f"Rating saved: {rating}/5 ({RATING_LABELS[language][rating]}) for session {session_id}")
+        logger.info(f"Rating saved successfully: {rating}/5 ({RATING_LABELS[language][rating]}) for session {session_id}")
+        return True
+        
     except Exception as e:
-        logger.error(f"Failed to save rating data: {e}")
+        logger.error(f"Error saving rating data: {e}")
+        return False
 
 def detect_greeting(text: str) -> tuple[bool, str]:
     """Detect greeting intent and return a normalized key"""
@@ -343,6 +368,116 @@ def detect_yes_no_response(text: str, language: str) -> str:
     return "unknown"
 
 def format_simple_grievance_status(grievance_data: dict, language: str) -> str:
+    """Format grievance status data into a readable message"""
+    if not grievance_data:
+        return "Grievance not found" if language == "en" else "तक्रार आढळली नाही"
+    
+    logger.info(f"Formatting grievance data: {grievance_data}")
+    
+    # Format dates
+    submitted_date = grievance_data['grievance_logged_date'].strftime('%d-%b-%Y') if grievance_data.get('grievance_logged_date') else 'Not available'
+    resolved_date = grievance_data['resolved_date'].strftime('%d-%b-%Y') if grievance_data.get('resolved_date') else None
+    
+    if language == "en":
+        status_message = f"""The current status of your Grievance is as follows:
+Grievance ID: {grievance_data['grievance_id']}
+Status: {grievance_data['grievance_status']}
+Submitted: {submitted_date}
+Category: {grievance_data.get('grievance_name', 'Not specified')}
+Department: {grievance_data.get('organization_name', 'Not specified')}"""
+
+        # Add location details if available
+        if grievance_data.get('district_name'):
+            status_message += f"\nDistrict: {grievance_data['district_name']}"
+        if grievance_data.get('block_name'):
+            status_message += f"\nBlock: {grievance_data['block_name']}"
+        if grievance_data.get('grampanchayat_name'):
+            status_message += f"\nGram Panchayat: {grievance_data['grampanchayat_name']}"
+        
+        # Add resolution information if resolved
+        if resolved_date:
+            status_message += f"\nResolved on: {resolved_date}"
+            if grievance_data.get('resolved_user_name'):
+                status_message += f"\nResolved by: {grievance_data['resolved_user_name']}"
+    else:
+        # Marathi version
+        status_message = f"""आपल्या तक्रारीची सद्यस्थिती खालीलप्रमाणे आहे:
+तक्रार क्रमांक: {grievance_data['grievance_id']}
+स्थिती: {grievance_data['grievance_status']}
+दाखल दिनांक: {submitted_date}
+श्रेणी: {grievance_data.get('grievance_name', 'निर्दिष्ट नाही')}
+विभाग: {grievance_data.get('organization_name', 'निर्दिष्ट नाही')}"""
+
+        if grievance_data.get('district_name'):
+            status_message += f"\nजिल्हा: {grievance_data['district_name']}"
+        if grievance_data.get('block_name'):
+            status_message += f"\nतालुका: {grievance_data['block_name']}"
+        if grievance_data.get('grampanchayat_name'):
+            status_message += f"\nग्रामपंचायत: {grievance_data['grampanchayat_name']}"
+            
+        if resolved_date:
+            status_message += f"\nनिराकरण दिनांक: {resolved_date}"
+            if grievance_data.get('resolved_user_name'):
+                status_message += f"\nनिराकरण करणारे: {grievance_data['resolved_user_name']}"
+        
+    # Format the submitted date
+    submitted_date = grievance_data['submitted_date'].strftime('%d-%b-%Y') if grievance_data.get('submitted_date') else 'N/A'
+    
+    # Format the status message based on language
+    if language == "en":
+        status_msg = f"""The current status of your Grievance is as follows:
+Grievance ID: {grievance_data['grievance_id']}
+Status: {grievance_data['grievance_status']}
+Submitted: {submitted_date}
+Department: {grievance_data.get('department_name', 'Water Supply Department')}
+Category: {grievance_data.get('grievance_name', 'N/A')}
+Sub-category: {grievance_data.get('sub_grievance_name', 'N/A')}"""
+
+        # Add location details
+        if grievance_data.get('district_name'):
+            status_msg += f"\nDistrict: {grievance_data['district_name']}"
+        if grievance_data.get('block_name'):
+            status_msg += f"\nBlock: {grievance_data['block_name']}"
+        if grievance_data.get('grampanchayat_name'):
+            status_msg += f"\nGram Panchayat: {grievance_data['grampanchayat_name']}"
+
+        # Add estimated resolution time if applicable
+        if grievance_data.get('estimated_days') and grievance_data['grievance_status'] not in ['Resolved', 'Closed']:
+            status_msg += f"\nEstimated Resolution: {grievance_data['estimated_days']} working days"
+        
+        # Add current processing level
+        if grievance_data.get('current_level'):
+            status_msg += f"\nCurrently being processed at: {grievance_data['current_level']}"
+            
+        # Add resolution information if resolved
+        if grievance_data['grievance_status'] in ['Resolved', 'Closed']:
+            if grievance_data.get('resolved_date'):
+                resolved_date = grievance_data['resolved_date'].strftime('%d-%b-%Y')
+                status_msg += f"\nResolved on: {resolved_date}"
+            if grievance_data.get('resolved_user_name'):
+                status_msg += f"\nResolved by: {grievance_data['resolved_user_name']}"
+    
+    else:  # Marathi
+        status_msg = f"""आपल्या तक्रारीची सद्यस्थिती खालीलप्रमाणे आहे:
+तक्रार क्रमांक: {grievance_data['grievance_unique_number']}
+स्थिती: {grievance_data['grievance_status']}
+दाखल दिनांक: {submitted_date}
+विभाग: {grievance_data.get('department_name', 'पाणी पुरवठा विभाग')}"""
+
+        if grievance_data.get('estimated_days'):
+            status_msg += f"\nअंदाजे निराकरण कालावधी: {grievance_data['estimated_days']} कार्यदिवस"
+        
+        if grievance_data.get('current_level'):
+            status_msg += f"\nसध्याची पातळी: {grievance_data['current_level']}"
+            
+        if grievance_data['grievance_status'] == 'Resolved' and grievance_data.get('resolved_date'):
+            resolved_date = grievance_data['resolved_date'].strftime('%d-%b-%Y')
+            status_msg += f"\nनिराकरण दिनांक: {resolved_date}"
+            
+        if grievance_data.get('status_remarks'):
+            status_msg += f"\nशेरा: {grievance_data['status_remarks']}"
+    
+    return status_msg
     """Format SIMPLE grievance status information for display - FIXED VERSION"""
     if language == "mr":
         status_msg = f"""🔍 तक्रार स्थिती: {grievance_data['status']}
@@ -456,6 +591,27 @@ def get_no_response(language: str) -> str:
 {kb['no_response']}"""
 
 async def process_maha_jal_query(input_text: str, session_id: str, language: str) -> str:
+    """Process user queries for the Maha-Jal system"""
+    logger.info(f"Processing query: {input_text} for session: {session_id} in language: {language}")
+    
+    # Check if input contains a grievance ID pattern
+    grievance_id_match = re.search(r'[Gg]-[a-zA-Z0-9]+', input_text)
+    if grievance_id_match:
+        grievance_id = grievance_id_match.group()
+        logger.info(f"Detected grievance ID: {grievance_id}")
+        
+        try:
+            # Get grievance data from database
+            grievance_data = await db_manager.get_grievance_status(grievance_id)
+            
+            if grievance_data:
+                logger.info(f"Found grievance data: {grievance_data}")
+                return format_simple_grievance_status(grievance_data, language)
+            else:
+                return MAHA_JAL_KNOWLEDGE_BASE[language]["grievance_not_found"]
+        except Exception as e:
+            logger.error(f"Error fetching grievance status: {e}")
+            return MAHA_JAL_KNOWLEDGE_BASE[language]["database_error"]
     """Enhanced Maha-Jal Samadhan query processing with IMPROVED status check flow"""
     if session_id not in USER_SESSION_STATE:
         USER_SESSION_STATE[session_id] = {"stage": "initial", "language": language}
@@ -759,30 +915,67 @@ async def process_query(request: QueryRequest):
 @app.post("/grievance/status/")
 async def get_grievance_status_endpoint(request: GrievanceStatusRequest):
     """SIMPLE Grievance Status Check - Returns only essential information"""
+    logger.info(f"Received grievance status request for ID: {request.grievance_id}, Language: {request.language}")
+    
     try:
-        grievance_data = await get_grievance_status(request.grievance_id)
+        # Initialize database connection if not already initialized
+        if not db_manager.pool:
+            logger.info("Initializing database connection...")
+            await db_manager.init_pool()
+        
+        # Get grievance data from database
+        grievance_data = await db_manager.get_grievance_status(request.grievance_id)
+        
+        logger.info(f"Retrieved grievance data: {grievance_data}")
+        
         if grievance_data:
-            # Return ONLY essential status information
-            return {
-                "found": True,
-                "grievance_id": grievance_data['grievance_number'],
-                "status": grievance_data['status'],
-                "category": grievance_data['category'],
-                "created_at": grievance_data['created_at'][:10] if grievance_data['created_at'] else None,
-                "language": request.language
-            }
-        else:
-            error_msg = {
-                'en': "Sorry, no grievance found with the provided ID. Please check your Grievance ID and try again.",
-                'mr': "माफ करा, दिलेल्या क्रमांकासह कोणतीही तक्रार आढळली नाही. कृपया आपला तक्रार क्रमांक तपासा आणि पुन्हा प्रयत्न करा."
-            }
+            # Format the response using the helper function
+            formatted_status = format_simple_grievance_status(grievance_data, request.language)
+            logger.info(f"Formatted status message: {formatted_status}")
+            
             return JSONResponse(
-                status_code=404,
                 content={
-                    "found": False,
-                    "message": error_msg.get(request.language, error_msg['en'])
+                    "success": True,
+                    "found": True,
+                    "message": formatted_status,
+                    "data": {
+                        "grievance_id": grievance_data.get('grievance_id'),
+                        "status": grievance_data.get('grievance_status'),
+                        "submitted_date": grievance_data.get('submitted_date').strftime('%d-%b-%Y') if grievance_data.get('submitted_date') else None,
+                        "department": grievance_data.get('department_name', 'Water Supply Department'),
+                        "language": request.language
+                    }
                 }
             )
+        
+        # If no grievance data found
+        error_msg = {
+            'en': "Sorry, no grievance found with the provided ID. Please check your Grievance ID and try again.",
+            'mr': "माफ करा, दिलेल्या क्रमांकासह कोणतीही तक्रार आढळली नाही. कृपया आपला तक्रार क्रमांक तपासा आणि पुन्हा प्रयत्न करा."
+        }
+        logger.warning(f"No grievance found with ID: {request.grievance_id}")
+        return JSONResponse(
+            status_code=404,
+            content={
+                "success": False,
+                "found": False,
+                "message": error_msg.get(request.language, error_msg['en'])
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error processing grievance status request: {str(e)}")
+        error_msg = {
+            'en': "An error occurred while fetching the grievance status. Please try again later.",
+            'mr': "तक्रार स्थिती मिळवताना त्रुटी आली. कृपया नंतर पुन्हा प्रयत्न करा."
+        }
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "message": error_msg.get(request.language, error_msg['en']),
+                "error": str(e)
+            }
+        )
     except Exception as e:
         logger.error(f"Error fetching grievance status: {e}")
         error_msg = {
@@ -878,28 +1071,86 @@ async def get_database_stats():
 @app.post("/rating/")
 async def submit_rating(request: RatingRequest):
     """Submit user rating for service quality"""
+    logger.info(f"Received rating request: {request.dict()}")
+    
     try:
-        if request.rating not in [1, 2, 3, 4, 5]:
-            error_msg = {
-                'en': "The information you have entered is invalid. Please try again.",
-                'mr': "आपण दिलेली माहिती अवैध आहे. कृपया पुन्हा प्रयत्न करा."
-            }
-            return JSONResponse(
-                status_code=400,
-                content={"reply": error_msg.get(request.language, error_msg['en'])}
-            )
-
         session_id = request.session_id or generate_session_id()
-        save_rating_data(
+        rating_label = RATING_LABELS[request.language][request.rating]
+        
+        # Save rating data
+        success = save_rating_data(
             rating=request.rating,
             session_id=session_id,
             language=request.language,
             grievance_id=request.grievance_id,
             feedback_text=request.feedback_text
         )
-
-        rating_label = RATING_LABELS[request.language][request.rating]
-        thank_you_msg = MAHA_JAL_KNOWLEDGE_BASE[request.language]['rating_thank_you']
+        
+        if success:
+            # Get thank you message from knowledge base
+            thank_you_msg = MAHA_JAL_KNOWLEDGE_BASE[request.language]['rating_thank_you']
+            
+            response_msg = {
+                'en': f"Thank you for your {request.rating}-star rating! ({rating_label})",
+                'mr': f"आपल्या {request.rating}-स्टार रेटिंगसाठी धन्यवाद! ({rating_label})"
+            }
+            
+            logger.info(f"Successfully saved rating: {request.rating} stars for session {session_id}")
+            
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "success": True,
+                    "message": response_msg.get(request.language, response_msg['en']),
+                    "thank_you": thank_you_msg,
+                    "rating": request.rating,
+                    "rating_label": rating_label,
+                    "session_id": session_id
+                }
+            )
+        else:
+            error_msg = {
+                'en': "Failed to save your rating. Please try again.",
+                'mr': "आपले रेटिंग जतन करण्यात अयशस्वी. कृपया पुन्हा प्रयत्न करा."
+            }
+            logger.error(f"Failed to save rating for session {session_id}")
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "success": False,
+                    "message": error_msg.get(request.language, error_msg['en'])
+                }
+            )
+            
+    except ValidationError as ve:
+        logger.error(f"Validation error in rating submission: {ve}")
+        error_msg = {
+            'en': "Invalid rating data. Rating must be between 1 and 5.",
+            'mr': "अवैध रेटिंग डेटा. रेटिंग 1 आणि 5 दरम्यान असावे."
+        }
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False,
+                "message": error_msg.get(request.language, error_msg['en']),
+                "errors": str(ve)
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in rating submission: {str(e)}")
+        error_msg = {
+            'en': "An error occurred while processing your rating.",
+            'mr': "आपले रेटिंग प्रक्रिया करताना त्रुटी आली."
+        }
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "message": error_msg.get(request.language, error_msg['en']),
+                "error": str(e)
+            }
+        )
         response_msg = f"{thank_you_msg}\n\nYour Rating: {request.rating}/5 ({rating_label})"
         if request.language == "mr":
             response_msg = f"{thank_you_msg}\n\nआपले रेटिंग: {request.rating}/५ ({rating_label})"

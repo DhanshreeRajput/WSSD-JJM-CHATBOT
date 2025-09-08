@@ -598,6 +598,26 @@
         .rating-feedback.rating-4 { color: #16a34a; }
         .rating-feedback.rating-5 { color: #059669; }
 
+        .message.bot.rating-confirmation {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            text-align: center;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin: 8px 0;
+            box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+        }
+
+        .message.bot.thank-you {
+            background: #f8fafc;
+            color: #1e293b;
+            text-align: center;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 8px 0;
+            border: 1px solid #e2e8f0;
+        }
+
         .submit-rating-btn {
             background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             border: none;
@@ -1130,18 +1150,39 @@
 
         async function submitRating(rating) {
             try {
-                // Simulate rating submission since API might not be available
                 const ratingLabels = PGRS_SCRIPTS[currentLanguage].rating_labels;
                 const script = PGRS_SCRIPTS[currentLanguage];
                 
-                addMessage(`Thank you! You rated our service ${rating}/5 stars (${ratingLabels[rating]})`, true);
-                setTimeout(() => {
-                    addMessage(script.thank_you, false);
-                    chatState = 'end';
-                }, 500);
+                // Send rating to backend
+                const response = await fetch(`${API_BASE_URL}/rating/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        rating: rating,
+                        session_id: currentSessionId,
+                        language: currentLanguage,
+                        grievance_id: pendingGrievanceId || 'NA',
+                        feedback_text: document.getElementById('feedbackText')?.value || ''
+                    })
+                });
+
+                if (response.ok) {
+                    setTimeout(() => {
+                        addMessage(script.thank_you, false);
+                        chatState = 'end';
+                        // Reset the pending grievance ID
+                        pendingGrievanceId = '';
+                    }, 500);
+                } else {
+                    throw new Error('Failed to submit rating');
+                }
             } catch (error) {
                 console.error('Rating submission error:', error);
                 addMessage('Sorry, there was an error submitting your rating. Please try again.', false);
+                // Reset chat state to allow retry
+                chatState = 'rating';
             }
         }
 
@@ -1253,6 +1294,9 @@
             setTimeout(() => {
                 const statusMessage = `${script.status_prefix}\n\nGrievance ID: ${grievanceId}\nStatus: Under Review\nSubmitted: 15-Nov-2024\nDepartment: Water Supply Department\nEstimated Resolution: 7-10 working days\n\nYour grievance is currently being reviewed by the concerned department.`;
                 addMessage(statusMessage, false);
+                
+                // Store grievance ID for feedback
+                pendingGrievanceId = grievanceId;
                 
                 // Continue to feedback
                 setTimeout(() => {
@@ -1401,10 +1445,11 @@
         function startConversation() {
             const script = PGRS_SCRIPTS[currentLanguage];
             
-            // Clear any existing messages
+            // Clear any existing messages and reset state
             const existingMessages = elements.chatMessages.querySelectorAll('.message');
             existingMessages.forEach(msg => msg.remove());
             
+            pendingGrievanceId = '';
             chatState = 'start';
             elements.quickSuggestions.style.display = 'block';
             

@@ -1,0 +1,11 @@
+﻿timestamp,session_id,rating,rating_label,language,grievance_id,feedback_text,ip_address
+2025-09-08 15:33:06,session_02ucmtjv4_1757325771060,5,Excellent,en,N/A,N/A,N/A
+2025-09-08 15:41:01,session_1zza3fkmh_1757326246834,5,Excellent,en,N/A,N/A,N/A
+2025-09-08 15:42:06,session_0ys5jeaty_1757326316744,5,Excellent,en,N/A,N/A,N/A
+2025-09-08 15:45:40,session_60nw5pmbb_1757326528900,5,Excellent,en,N/A,N/A,N/A
+2025-09-08 15:46:28,session_60nw5pmbb_1757326528900,3,Good,en,N/A,N/A,N/A
+2025-09-08 15:48:50,session_67rcq3t5g_1757326716089,1,Poor,en,N/A,N/A,N/A
+2025-09-08 15:51:30,session_qg01oddgb_1757326879254,2,Fair,en,N/A,N/A,N/A
+2025-09-08 15:52:52,session_sm1ytyvg5_1757326960755,5,Excellent,en,N/A,N/A,N/A
+2025-09-08 15:57:39,session_1opg3vdcw_1757327235282,4,Very Good,en,G-12safeg7678,N/A,N/A
+2025-09-08 15:57:56,session_1opg3vdcw_1757327235282,2,Fair,en,NA,N/A,N/A
