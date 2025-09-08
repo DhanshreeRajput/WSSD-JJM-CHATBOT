@@ -849,7 +849,6 @@
                     5: "Excellent"
                 },
                 suggestions: [
-                    "I want to register a grievance",
                     "I want to check grievance status",
                     "I want to provide feedback"
                 ]
@@ -883,7 +882,7 @@
                     5: "उत्कृष्ट"
                 },
                 suggestions: [
-                    "मला तक्रार नोंदवायची आहे",
+                    
                     "मला तक्रार स्थिती तपासायची आहे",
                     "मला अभिप्राय द्यायचा आहे"
                 ]
