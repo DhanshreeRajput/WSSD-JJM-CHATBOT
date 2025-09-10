@@ -1,10 +1,8 @@
 import asyncpg
-import asyncio
 import os
 import logging
 from dotenv import load_dotenv
-from typing import Optional, Dict, Any, List, Set
-from enum import Enum
+from typing import Optional, Dict, Any, List
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -14,7 +12,6 @@ class DatabaseManager:
     def __init__(self):
         self.pool = None
         self.database_url = os.getenv('DATABASE_URL')
-        # Fallback to individual environment variables
         if not self.database_url:
             user = os.getenv('POSTGRES_USER', 'postgres')
             password = os.getenv('POSTGRES_PASSWORD', 'root@123')
@@ -46,157 +43,27 @@ class DatabaseManager:
         if self.pool:
             await self.pool.close()
             logger.info("🔒 Database connection pool closed")
-
-    async def get_grievance_status(self, grievance_id: str) -> Optional[Dict[str, Any]]:
-        """Fetch detailed grievance status and information from grievance_detail2.
-
-        Args:
-            grievance_id: The grievance identifier to fetch details for.
-
-        Returns:
-            Dict of grievance details (all fields from grievance_detail2) if found,
-            None if not found or on error.
-        """
+    
+    async def get_grievance_status_by_unique_number(self, grievance_unique_number: str) -> Optional[Dict[str, Any]]:
         if not self.pool:
             logger.error("Database pool not initialized")
             return None
-
-        query = """
-        SELECT
-            grievance_id,
-            grievance_status,
-            organization_name,
-            district_name,
-            block_name,
-            grampanchayat_name,
-            habitation_name,
-            village_name,
-            sub_grievance_name,
-            citizen_name,
-            mobile_number,
-            landline_number,
-            aadhar_number,
-            address,
-            pincode,
-            grievance_logged_date,
-            resolved_date,
-            resolved_user_name,
-            closed_date,
-            verified_user_name,
-            citizen_feedback,
-            rating,
-            district_id,
-            block_id,
-            grampanchayat_id,
-            village_id,
-            subgrievance_type_id,
-            grievance_type_id,
-            resolvedby_user_id,
-            last_update_at,
-            accepted_by_hierarchy,
-            assigned_to_hierarchy
-        FROM grievance_detail2
-        WHERE grievance_id = $1 OR grievance_id LIKE '%' || $1 || '%'
-        """
         try:
-            async with self.pool.acquire() as conn:
-                # Test connection
-                await conn.fetchval("SELECT 1")
-                result = await conn.fetchrow(query, grievance_id.strip())
-                if result:
-                    logger.info(f"Found grievance data for ID: {grievance_id}")
-                    return dict(result)
-                else:
-                    logger.warning(f"No grievance found with ID: {grievance_id}")
-                    return None
+            async with self.pool.acquire() as connection:
+                query = '''
+                SELECT gd.*, g.grievance_unique_number
+                FROM public.grievance_detail2 gd
+                INNER JOIN public.grievances g ON gd.grievance_id = g.id
+                WHERE g.grievance_unique_number = $1
+                '''
+                result = await connection.fetchrow(query, grievance_unique_number)
+            if result:
+                return dict(result)
+            else:
+                return None
         except Exception as e:
-            logger.error(f"Database error while fetching grievance {grievance_id}:", exc_info=True)
+            logger.error(f"DB error fetching by unique_number: {e}")
             return None
-
-    async def search_grievances_by_user(self, user_identifier: str) -> List[Dict[str, Any]]:
-        """Search grievances by user mobile, email, or name."""
-        if not self.pool:
-            logger.error("Database pool not initialized")
-            return []
-        try:
-            async with self.pool.acquire() as conn:
-                query = """
-                SELECT DISTINCT
-                    g.id,
-                    g.grievance_unique_number,
-                    g.citizen_name,
-                    g.grievance_status,
-                    g.created_at,
-                    gc.grievance_name as category_name
-                FROM grievances g
-                LEFT JOIN grievance_categories gc ON g.grievance_type_id = gc.id
-                WHERE LOWER(g.mobile_number) LIKE '%' || LOWER($1) || '%'
-                  OR LOWER(g.email) LIKE '%' || LOWER($1) || '%'
-                  OR LOWER(g.citizen_name) LIKE '%' || LOWER($1) || '%'
-                ORDER BY g.created_at DESC
-                LIMIT 10
-                """
-                results = await conn.fetch(query, user_identifier.strip())
-                return [
-                    {
-                        'grievance_id': str(row['id']),
-                        'grievance_number': row['grievance_unique_number'] or f"GR{row['id']}",
-                        'citizen_name': row['citizen_name'] or 'N/A',
-                        'status': row['grievance_status'] or 'Pending',
-                        'category': row['category_name'] or 'General',
-                        'created_at': row['created_at'].isoformat() if row['created_at'] else None
-                    }
-                    for row in results
-                ]
-        except Exception as e:
-            logger.error(f"Database error while searching grievances for {user_identifier}:", exc_info=True)
-            return []
-
-    async def get_grievance_statistics(self) -> Dict[str, Any]:
-        """Fetch grievance statistics: total, status distribution, category distribution, etc."""
-        if not self.pool:
-            logger.error("Database pool not initialized")
-            return {}
-        try:
-            async with self.pool.acquire() as conn:
-                # Total active grievances
-                total = await conn.fetchval("SELECT COUNT(*) FROM grievances WHERE is_active = true")
-                # Status distribution
-                status_dist = {
-                    row['status']: row['count']
-                    for row in await conn.fetch(
-                        "SELECT grievance_status as status, COUNT(*) as count FROM grievances "
-                        "WHERE grievance_status IS NOT NULL AND is_active = true GROUP BY grievance_status"
-                    )
-                }
-                # Category distribution (top 10)
-                category_dist = {
-                    row['category']: row['count']
-                    for row in await conn.fetch(
-                        "SELECT gc.grievance_name as category, COUNT(*) as count "
-                        "FROM grievances g LEFT JOIN grievance_categories gc ON g.grievance_type_id = gc.id "
-                        "WHERE g.is_active = true GROUP BY gc.grievance_name ORDER BY count DESC LIMIT 10"
-                    )
-                }
-                # Recent grievances (last 30 days)
-                recent = await conn.fetchval(
-                    "SELECT COUNT(*) FROM grievances WHERE created_at >= NOW() - INTERVAL '30 days' AND is_active = true"
-                )
-                # Resolved grievances
-                resolved = await conn.fetchval(
-                    "SELECT COUNT(*) FROM grievances "
-                    "WHERE grievance_status IN ('Resolved', 'Closed', 'Completed') AND is_active = true"
-                )
-                return {
-                    'total_grievances': total,
-                    'recent_grievances_30_days': recent,
-                    'resolved_grievances': resolved,
-                    'status_distribution': status_dist,
-                    'category_distribution': category_dist
-                }
-        except Exception as e:
-            logger.error("Error fetching grievance statistics:", exc_info=True)
-            return {"error": str(e)}
 
     async def test_connection(self) -> bool:
         """Test database connectivity"""

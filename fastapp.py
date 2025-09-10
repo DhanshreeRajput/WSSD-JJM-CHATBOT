@@ -756,14 +756,20 @@ async def process_query(request: QueryRequest):
 
 @app.post("/grievance/status/")
 async def get_grievance_status_endpoint(request: GrievanceStatusRequest):
-    """SIMPLE Grievance Status Check."""
     logger.info(f"Received grievance status request for ID: {request.grievance_id}, Language: {request.language}")
     try:
         if not db_manager.pool:
             logger.info("Initializing database connection...")
             await db_manager.init_pool()
-        grievance_data = await db_manager.get_grievance_status(request.grievance_id)
+
+        # Detect whether input is numeric (grievance_id) or unique number string
+        if request.grievance_id.isdigit():
+            grievance_data = await db_manager.get_grievance_status(request.grievance_id)
+        else:
+            grievance_data = await db_manager.get_grievance_status_by_unique_number(request.grievance_id)
+
         logger.info(f"Retrieved grievance data: {grievance_data}")
+
         if grievance_data:
             formatted_status = format_simple_grievance_status(grievance_data, request.language)
             logger.info(f"Formatted status message: {formatted_status}")
@@ -774,8 +780,8 @@ async def get_grievance_status_endpoint(request: GrievanceStatusRequest):
                     "message": formatted_status,
                     "grievance_id": grievance_data.get("grievance_id"),
                     "status": grievance_data.get("grievance_status"),
-                    "submitted_date": grievance_data.get("submitted_date").strftime("%d-%b-%Y") if grievance_data.get("submitted_date") else None,
-                    "department": grievance_data.get("department_name", "Water Supply Department"),
+                    "submitted_date": grievance_data.get("grievance_logged_date").strftime("%d-%b-%Y") if grievance_data.get("grievance_logged_date") else None,
+                    "department": grievance_data.get("organization_name", "Water Supply Department"),
                     "language": request.language
                 }
             )
