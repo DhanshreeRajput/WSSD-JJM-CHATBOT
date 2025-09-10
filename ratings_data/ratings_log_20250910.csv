@@ -1,0 +1,6 @@
+﻿timestamp,session_id,rating,rating_label,language,grievance_id,feedback_text,ip_address
+2025-09-10 10:12:29,session_ds7o5l0kn_1757479340428,3,Good,en,NA,N/A,N/A
+2025-09-10 10:12:49,session_ds7o5l0kn_1757479340428,5,उत्कृष्ट,mr,NA,N/A,N/A
+2025-09-10 10:44:30,session_xqwi6ri97_1757480416594,1,Poor,en,NA,N/A,N/A
+2025-09-10 10:44:48,session_xqwi6ri97_1757480416594,3,चांगले,mr,NA,N/A,N/A
+2025-09-10 10:45:17,session_xqwi6ri97_1757480416594,1,खराब,mr,G-12safeg7678,N/A,N/A
