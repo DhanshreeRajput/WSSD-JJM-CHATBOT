@@ -666,9 +666,8 @@ async def preflight_handler(request: Request, full_path: str):
         }
     )
 
-@app.get("/")
-async def root():
-    """Root endpoint with system status."""
+@app.get("/status")
+async def status():
     try:
         uptime = time.time() - SYSTEM_STATUS["startup_time"]
         db_info = await get_db_info() if SYSTEM_STATUS["database_connected"] else {"connected": False}
