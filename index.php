@@ -775,7 +775,7 @@
 <body>
     <!-- Demo Content -->
     <div class="demo-content">
-        <h1>Welcome to the WSSD JJM Chatbot</h1>
+        <h1>Welcome to PGRS Portal Chatbot.</h1>
     </div>   
 
     <!-- Chat Widget -->
@@ -792,7 +792,7 @@
                         <img src="logo/jjm_new_logo.svg" alt="PGRS Logo" onerror="this.style.display='none'">
                     </div>
                     <div class="chat-header-text">
-                        <h3>Maha-Jal Samadhan PGRS</h3>
+                        <h3>Public Grievance Redressal System Portal</h3>
                         <p id="connectionStatus">Ready to help</p>
                     </div>
                 </div>
@@ -841,7 +841,7 @@
         // PGRS Script Configuration
         const PGRS_SCRIPTS = {
             en: {
-                welcome: "Welcome to the Maha-Jal Samadhan Public Grievance Redressal System.",
+                welcome: "Welcome to Public Grievance Redressal System portal AI-ChatBot.",
                 question1: "Would you like to register a Grievance on the Maha-Jal Samadhan Public Grievance Redressal System?",
                 question2: "Would you like to check the status of the grievance which you have registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
                 question3: "Would you like to provide feedback regarding the resolution of your grievance addressed through the Maha-Jal Samadhan Public Grievance Redressal System?",
@@ -874,7 +874,7 @@
                 ]
             },
             mr: {
-                welcome: "नमस्कार, महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर आपले स्वागत आहे.",
+                welcome: "नमस्कार, सार्वजनिक तक्रार निवारण प्रणाली पोर्टल एआय-चॅटबॉटमध्ये आपले स्वागत आहे.",
                 question1: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर आपण तक्रार नोंदू इच्छिता का?",
                 question2: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर आपण केलेल्या तक्रारीची स्थिती पाहू इच्छिता का?",
                 question3: "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीद्वारे सोडविण्यात आलेल्या आपल्या तक्रारीच्या निराकरणाबाबत अभिप्राय देऊ इच्छिता का?",

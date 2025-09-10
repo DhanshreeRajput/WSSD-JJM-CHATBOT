@@ -129,7 +129,7 @@ RATING_LABELS = {
 # Updated Maha-Jal Knowledge Base with proper status check flow
 MAHA_JAL_KNOWLEDGE_BASE = {
     "en": {
-        "welcome_message": "Welcome to the Maha-Jal Samadhan Public Grievance Redressal System.",
+        "welcome_message": "Welcome to Public Grievance Redressal System portal AI-ChatBot.",
         "initial_question": "Would you like to register a Grievance on the Maha-Jal Samadhan Public Grievance Redressal System?",
         "check_existing_question": "Has a Grievance already been registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
         "status_check_question": "Would you like to check the status of the grievance which you have registered on the Maha-Jal Samadhan Public Grievance Redressal System?",
@@ -161,7 +161,7 @@ MAHA_JAL_KNOWLEDGE_BASE = {
         "track_grievance_help": "You can also track your grievance status at: https://mahajalsamadhan.in/view-grievance"
     },
     "mr": {
-        "welcome_message": "नमस्कार, महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये आपले स्वागत आहे.",
+        "welcome_message": "नमस्कार, सार्वजनिक तक्रार निवारण प्रणाली पोर्टल एआय-चॅटबॉटमध्ये आपले स्वागत आहे.",
         "initial_question": "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये आपण तक्रार नोंदवू इच्छिता का?",
         "check_existing_question": "महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये नोंदविण्यात आलेली तक्रार आहे का?",
         "status_check_question": "आपण महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीमध्ये नोंदवलेल्या तक्रारीची स्थिती तपासू इच्छिता का?",
