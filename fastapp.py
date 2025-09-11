@@ -777,7 +777,7 @@ async def get_grievance_status_endpoint(request: GrievanceStatusRequest):
                     "success": True,
                     "found": True,
                     "message": formatted_status,
-                    "grievance_id": grievance_data.get("grievance_id"),
+                    "grievance_id": grievance_data.get("grievance_unique_number"),
                     "status": grievance_data.get("grievance_status"),
                     "submitted_date": grievance_data.get("grievance_logged_date").strftime("%d-%b-%Y") if grievance_data.get("grievance_logged_date") else None,
                     "department": grievance_data.get("organization_name", "Water Supply Department"),

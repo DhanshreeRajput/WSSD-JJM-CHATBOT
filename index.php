@@ -1263,48 +1263,88 @@
         }
 
         // Process grievance ID
-        function processGrievanceId(grievanceId) {
-            const script = PGRS_SCRIPTS[currentLanguage];
-            
-            // Disable input
-            const input = document.getElementById('grievanceInput');
-            const button = document.getElementById('checkStatusBtn');
-            input.disabled = true;
-            button.disabled = true;
-            button.textContent = 'Processing...';
-            button.style.backgroundColor = '#999';
-            
-            // Add user message
-            addMessage(grievanceId, true);
-            
-            // Validate format
-            const grievancePattern = /^G-[A-Za-z0-9]{8,}$/i;
-            
-            if (!grievancePattern.test(grievanceId)) {
-                setTimeout(() => {
-                    addMessage(script.invalid_grievance_id, false);
-                    setTimeout(() => {
-                        showGrievanceInput(); // Show input again
-                    }, 1500);
-                }, 1000);
-                return;
-            }
-            
-            // Show status (simulated)
+        async function fetchGrievanceStatus(grievanceId, language) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/grievance/status/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ grievance_id: grievanceId, language: language })
+        });
+        const data = await response.json();
+        if (response.ok && data.found) {
+            return { success: true, message: data.message };
+        } else if (response.status === 404) {
+            return { success: false, message: data.message || "Grievance not found." };
+        } else {
+            return { success: false, message: "Error fetching status. Please try again." };
+        }
+    } catch (error) {
+        console.error("Network error", error);
+        return { success: false, message: "Error connecting to server." };
+    }
+}
+
+
+       async function processGrievanceId(grievanceId) {
+    const script = PGRS_SCRIPTS[currentLanguage];
+
+    // Disable input
+    const input = document.getElementById('grievanceInput');
+    const button = document.getElementById('checkStatusBtn');
+    input.disabled = true;
+    button.disabled = true;
+    button.textContent = 'Processing...';
+    button.style.backgroundColor = '#999';
+
+    // Add user message
+    addMessage(grievanceId, true);
+
+    // Validate format
+    const grievancePattern = /^G-[A-Za-z0-9]{8,}$/i;
+    if (!grievancePattern.test(grievanceId)) {
+        setTimeout(() => {
+            addMessage(script.invalid_grievance_id, false);
             setTimeout(() => {
-                const statusMessage = `${script.status_prefix}\n\nGrievance ID: ${grievanceId}\nStatus: Under Review\nSubmitted: 15-Nov-2024\nDepartment: Water Supply Department\nEstimated Resolution: 7-10 working days\n\nYour grievance is currently being reviewed by the concerned department.`;
-                addMessage(statusMessage, false);
-                
-                // Store grievance ID for feedback
-                pendingGrievanceId = grievanceId;
-                
-                // Continue to feedback
-                setTimeout(() => {
-                    chatState = 'question3';
-                    addOptionsMessage(script.question3, [script.yes, script.no]);
-                }, 2000);
+                showGrievanceInput(); // Show input again
+            }, 1500);
+        }, 1000);
+        return;
+    }
+
+    showTypingIndicator(); // Optional: Show "Assistant is typing..."
+
+    try {
+        // Call backend API to fetch real-time status
+        const result = await fetchGrievanceStatus(grievanceId, currentLanguage);
+
+        if (result.success) {
+            hideTypingIndicator();
+            // Display backend's detailed status message
+            addMessage(result.message, false);
+            pendingGrievanceId = grievanceId;
+            // Continue to feedback question
+            setTimeout(() => {
+                chatState = 'question3';
+                addOptionsMessage(script.question3, [script.yes, script.no]);
+            }, 2000);
+        } else {
+            hideTypingIndicator();
+            // Show error message from API (e.g., "Grievance not found")
+            addMessage(result.message, false);
+            // Let user retry
+            setTimeout(() => {
+                showGrievanceInput();
             }, 1500);
         }
+    } catch (error) {
+        hideTypingIndicator();
+        addMessage("Error connecting to the server. Please try again.", false);
+        setTimeout(() => {
+            showGrievanceInput();
+        }, 1500);
+    }
+}
+
 
         function handleQuickSuggestion(suggestion) {
             // Add user message
