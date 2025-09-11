@@ -392,7 +392,7 @@ def format_simple_grievance_status(grievance_data: dict, language: str) -> str:
 
     if language == "en":
         status_message = f"""The current status of your Grievance is as follows:
-Grievance ID: {grievance_data['grievance_id']}
+Grievance ID: {grievance_data['grievance_unique_number']}
 Status: {grievance_data['grievance_status']}
 Submitted: {submitted_date}
 Category: {grievance_data.get('grievance_name', 'Not specified')}
@@ -409,7 +409,7 @@ Department: {grievance_data.get('organization_name', 'Not specified')}"""
             status_message += f"\nResolved by: {grievance_data['resolved_user_name']}"
     else:
         status_message = f"""आपल्या तक्रारीची सद्यस्थिती खालीलप्रमाणे आहे:
-तक्रार क्रमांक: {grievance_data['grievance_id']}
+तक्रार क्रमांक: {grievance_data['grievance_unique_number']}
 स्थिती: {grievance_data['grievance_status']}
 दाखल दिनांक: {submitted_date}
 श्रेणी: {grievance_data.get('grievance_name', 'निर्दिष्ट नाही')}
