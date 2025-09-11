@@ -1423,10 +1423,10 @@
                                 chatState = 'end';
                             }, 1000);
                         }, 500);
-                    } else { // NO - Don't want to register, ask next question
-                        chatState = 'question2';
+                    } else { // NO - Don't want to give feedback
                         setTimeout(() => {
-                            addOptionsMessage(script.question2, [script.yes, script.no]);
+                            addMessage(script.thank_you);
+                            chatState = 'end';
                         }, 500);
                     }
                     break;
