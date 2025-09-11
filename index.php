@@ -738,6 +738,66 @@
             transform: translateY(0);
         }
 
+        /* Grievance Status Formatting Styles */
+        .grievance-status-container {
+            background: #f0f8ff;
+            border: 2px solid #4a90e2;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 12px 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .status-header {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 15px;
+            text-align: center;
+            border-bottom: 2px solid #e3f2fd;
+            padding-bottom: 8px;
+        }
+
+        .status-details {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid #e8f4fd;
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-label {
+            font-weight: 600;
+            color: #34495e;
+            font-size: 13px;
+            min-width: 120px;
+        }
+
+        .status-value {
+            color: #2c3e50;
+            font-size: 13px;
+            text-align: right;
+            font-weight: 500;
+        }
+
+        .status-value.highlight {
+            background: #e8f5e8;
+            padding: 3px 8px;
+            border-radius: 6px;
+            color: #27ae60;
+            font-weight: bold;
+        }
+
         /* Export Button */
         .export-ratings-btn {
             background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
@@ -973,6 +1033,41 @@
             
             elements.chatMessages.insertBefore(messageDiv, elements.typingIndicator);
             scrollToBottom();
+        }
+
+        // NEW FUNCTION: Format grievance status with proper structure
+        function formatGrievanceStatus(statusText) {
+            // Parse the status text to extract individual components
+            const parts = statusText.split(/(?=Grievance ID:|Status:|Submitted:|Category:|Department:|District:|Block:|Gram Panchayat:)/);
+            
+            let formattedStatus = '<div class="grievance-status-container">';
+            formattedStatus += '<div class="status-header">Grievance Status Details</div>';
+            formattedStatus += '<div class="status-details">';
+            
+            parts.forEach(part => {
+                const trimmedPart = part.trim();
+                if (trimmedPart) {
+                    // Extract label and value
+                    const colonIndex = trimmedPart.indexOf(':');
+                    if (colonIndex !== -1) {
+                        const label = trimmedPart.substring(0, colonIndex + 1);
+                        const value = trimmedPart.substring(colonIndex + 1).trim();
+                        
+                        // Special formatting for status value
+                        const valueClass = label.includes('Status:') ? 'status-value highlight' : 'status-value';
+                        
+                        formattedStatus += `
+                            <div class="status-item">
+                                <span class="status-label">${label}</span>
+                                <span class="${valueClass}">${value}</span>
+                            </div>
+                        `;
+                    }
+                }
+            });
+            
+            formattedStatus += '</div></div>';
+            return formattedStatus;
         }
 
         function addOptionsMessage(content, options) {
@@ -1284,66 +1379,79 @@
     }
 }
 
+        async function processGrievanceId(grievanceId) {
+            const script = PGRS_SCRIPTS[currentLanguage];
 
-       async function processGrievanceId(grievanceId) {
-    const script = PGRS_SCRIPTS[currentLanguage];
+            // Disable input
+            const input = document.getElementById('grievanceInput');
+            const button = document.getElementById('checkStatusBtn');
+            input.disabled = true;
+            button.disabled = true;
+            button.textContent = 'Processing...';
+            button.style.backgroundColor = '#999';
 
-    // Disable input
-    const input = document.getElementById('grievanceInput');
-    const button = document.getElementById('checkStatusBtn');
-    input.disabled = true;
-    button.disabled = true;
-    button.textContent = 'Processing...';
-    button.style.backgroundColor = '#999';
+            // Add user message
+            addMessage(grievanceId, true);
 
-    // Add user message
-    addMessage(grievanceId, true);
+            // Validate format
+            const grievancePattern = /^G-[A-Za-z0-9]{8,}$/i;
+            if (!grievancePattern.test(grievanceId)) {
+                setTimeout(() => {
+                    addMessage(script.invalid_grievance_id, false);
+                    setTimeout(() => {
+                        showGrievanceInput(); // Show input again
+                    }, 1500);
+                }, 1000);
+                return;
+            }
 
-    // Validate format
-    const grievancePattern = /^G-[A-Za-z0-9]{8,}$/i;
-    if (!grievancePattern.test(grievanceId)) {
-        setTimeout(() => {
-            addMessage(script.invalid_grievance_id, false);
-            setTimeout(() => {
-                showGrievanceInput(); // Show input again
-            }, 1500);
-        }, 1000);
-        return;
-    }
+            showTypingIndicator();
 
-    showTypingIndicator(); // Optional: Show "Assistant is typing..."
+            try {
+                // Call backend API to fetch real-time status
+                const result = await fetchGrievanceStatus(grievanceId, currentLanguage);
 
-    try {
-        // Call backend API to fetch real-time status
-        const result = await fetchGrievanceStatus(grievanceId, currentLanguage);
-
-        if (result.success) {
-            hideTypingIndicator();
-            // Display backend's detailed status message
-            addMessage(result.message, false);
-            pendingGrievanceId = grievanceId;
-            // Continue to feedback question
-            setTimeout(() => {
-                chatState = 'question3';
-                addOptionsMessage(script.question3, [script.yes, script.no]);
-            }, 2000);
-        } else {
-            hideTypingIndicator();
-            // Show error message from API (e.g., "Grievance not found")
-            addMessage(result.message, false);
-            // Let user retry
-            setTimeout(() => {
-                showGrievanceInput();
-            }, 1500);
+                if (result.success) {
+                    hideTypingIndicator();
+                    
+                    // Format the status message properly
+                    const formattedStatus = formatGrievanceStatus(result.message);
+                    
+                    // Create a message with formatted status
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message bot';
+                    messageDiv.innerHTML = `
+                        <div class="message-content">
+                            ${formattedStatus}
+                            <div class="message-time">${getCurrentTime()}</div>
+                        </div>
+                    `;
+                    elements.chatMessages.insertBefore(messageDiv, elements.typingIndicator);
+                    scrollToBottom();
+                    
+                    pendingGrievanceId = grievanceId;
+                    // Continue to feedback question
+                    setTimeout(() => {
+                        chatState = 'question3';
+                        addOptionsMessage(script.question3, [script.yes, script.no]);
+                    }, 2000);
+                } else {
+                    hideTypingIndicator();
+                    // Show error message from API (e.g., "Grievance not found")
+                    addMessage(result.message, false);
+                    // Let user retry
+                    setTimeout(() => {
+                        showGrievanceInput();
+                    }, 1500);
+                }
+            } catch (error) {
+                hideTypingIndicator();
+                addMessage("Error connecting to the server. Please try again.", false);
+                setTimeout(() => {
+                    showGrievanceInput();
+                }, 1500);
+            }
         }
-    } catch (error) {
-        hideTypingIndicator();
-        addMessage("Error connecting to the server. Please try again.", false);
-        setTimeout(() => {
-            showGrievanceInput();
-        }, 1500);
-    }
-}
 
 
         function handleQuickSuggestion(suggestion) {
