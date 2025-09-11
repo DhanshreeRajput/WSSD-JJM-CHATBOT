@@ -225,11 +225,10 @@ def save_rating_data(rating: int, session_id: str, language: str, grievance_id: 
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "session_id": session_id,
             "rating": rating,
-            "rating_label": RATING_LABELS[language][rating],
+            "Feedback": RATING_LABELS[language][rating],
             "language": language,
-            "grievance_id": grievance_id or "N/A",
-            "feedback_text": feedback_text or "N/A",
-            "ip_address": "N/A"  # Can be added later
+            "grievance_id": grievance_id or "N/A"
+              # Can be added later
         }
 
         # Try to save to CSV
@@ -265,11 +264,10 @@ def save_rating_data(rating: int, session_id: str, language: str, grievance_id: 
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "session_id": session_id,
                 "rating": rating,
-                "rating_label": RATING_LABELS[language][rating],
+                "Feedback": RATING_LABELS[language][rating],
                 "language": language,
-                "grievance_id": grievance_id or "N/A",
-                "feedback_text": feedback_text or "N/A",
-                "ip_address": "N/A"
+                "grievance_id": grievance_id or "N/A"
+            
             }
             RATINGS_DATA.append(rating_entry)
             logger.info(f"Rating saved to memory only: {rating}/5 for session {session_id}")
@@ -981,7 +979,7 @@ async def export_ratings():
                 content={"error": "No ratings data available for export"}
             )
         output = io.StringIO()
-        fieldnames = ["timestamp", "session_id", "rating", "feedback", "language", "grievance_id", "ip_address"]
+        fieldnames = ["timestamp", "session_id", "rating", "feedback", "language", "grievance_id"]
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
         for rating_data in RATINGS_DATA:
@@ -991,8 +989,8 @@ async def export_ratings():
                 "rating": rating_data["rating"],
                 "feedback": rating_data["rating_label"],
                 "language": rating_data["language"],
-                "grievance_id": rating_data["grievance_id"],
-                "ip_address": rating_data["ip_address"]
+                "grievance_id": rating_data["grievance_id"]
+            
             }
             writer.writerow(modified_row)
         csv_content = output.getvalue()
