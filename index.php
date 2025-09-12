@@ -999,6 +999,7 @@
                 },
                 suggestions: [
                     "I want to check grievance status",
+                    "I want to Register a Grievance",
                     "I want to provide feedback"
                 ]
             },
@@ -1056,11 +1057,48 @@
                 },
                 suggestions: [
                     "मला तक्रार स्थिती तपासायची आहे",
+                    "मला तक्रार नोंदवायची आहे",
                     "मला अभिप्राय द्यायचा आहे"
                 ]
             }
         };
-        
+
+        // Add this after your PGRS_SCRIPTS object
+        const KNOWLEDGE_BASE = {
+            en: {
+                // Water Supply and Sanitation Department
+                "water supply sanitation department": "The Water Supply and Sanitation Department (WSSD) of the Government of Maharashtra is responsible for ensuring the provision of clean drinking water and sanitation services across the state's rural areas.",
+                
+                "state water sanitation mission": "SWSM (State Water Sanitation Mission) is tasked with implementing the Jal Jeevan Mission in Maharashtra, aiming to provide Functional Household Tap Connections (FHTC) to every rural household by 2024.",
+                
+                "maharashtra jeevan pradhikaran": "MJP (Maharashtra Jeevan Pradhikaran) was established in 1976 and focuses on rapid development and regulation of water supply and sewerage services state-wide. It handles planning, designing, and implementing water supply schemes.",
+                
+                "groundwater surveys development agency": "GSDA (Groundwater Surveys Development Agency) was established in 1972 and focuses on assessment and development of groundwater resources. Almost 80% of drinking water sources are groundwater dependent in Maharashtra.",
+                
+                "jal jeevan mission": "JJM (Jal Jeevan Mission) is a flagship program by the Ministry of Jal Shakti, Government of India, aiming to provide Functional Household Tap Connections to every rural household by 2024.",
+                
+                "jalyukt shivar abhiyan": "JSA (Jalyukt Shivar Abhiyan) Launched in 2016, this water conservation scheme aims to make Maharashtra drought-free by implementing measures like deepening streams, constructing dams, and rejuvenating water bodies.",
+                
+                "maha jal samadhan features": "Key features include: 1) Online grievance registration 2) Multiple complaint categories 3) Real-time status tracking 4) Response time commitments 5) Escalation mechanism for unresolved issues",
+                
+                "complaint categories": "The system allows complaints for: Non-supply or low pressure in drinking water, Water quality issues (contamination, color, odor), Pipeline leakages, Broken infrastructure and other water-related issues.",
+                
+                "benefits transparency accountability": "Benefits include: Transparency through complaint tracking, Accountability of government agencies, Improved efficiency with online submissions, Better accessibility for rural and urban residents."
+            },
+            mr: {
+            // Add proper Marathi keys that match user queries
+            "पाणी पुरवठा स्वच्छता विभाग": "महाराष्ट्र शासनाचा पाणी पुरवठा आणि स्वच्छता विभाग (WSSD) राज्यातील ग्रामीण भागात स्वच्छ पिण्याचे पाणी आणि स्वच्छता सेवा पुरवण्याची जबाबदारी पार पाडतो.",
+            "wssd": "महाराष्ट्र शासनाचा पाणी पुरवठा आणि स्वच्छता विभाग (WSSD) राज्यातील ग्रामीण भागात स्वच्छ पिण्याचे पाणी आणि स्वच्छता सेवा पुरवण्याची जबाबदारी पार पाडतो.",
+            "पाणी विभाग": "महाराष्ट्र शासनाचा पाणी पुरवठा आणि स्वच्छता विभाग (WSSD) राज्यातील ग्रामीण भागात स्वच्छ पिण्याचे पाणी आणि स्वच्छता सेवा पुरवण्याची जबाबदारी पार पाडतो.",
+            "राज्य जल स्वच्छता मिशन": "SWSM महाराष्ट्रात जल जीवन मिशन राबवण्याचे काम करते, ज्याचे उद्दिष्ट 2024 पर्यंत प्रत्येक ग्रामीण घराला कार्यक्षम घरगुती नळ जोडणी (FHTC) प्रदान करणे आहे.",
+            "swsm": "SWSM महाराष्ट्रात जल जीवन मिशन राबवण्याचे काम करते, ज्याचे उद्दिष्ट 2024 पर्यंत प्रत्येक ग्रामीण घराला कार्यक्षम घरगुती नळ जोडणी (FHTC) प्रदान करणे आहे.",
+            "महाराष्ट्र जीवन प्राधिकरण": "MJP 1976 मध्ये स्थापन झाले आणि राज्यभरात पाणी पुरवठा आणि सांडपाणी सेवांच्या जलद विकास आणि नियंत्रणावर केंद्रित आहे.",
+            "mjp": "MJP 1976 मध्ये स्थापन झाले आणि राज्यभरात पाणी पुरवठा आणि सांडपाणी सेवांच्या जलद विकास आणि नियंत्रणावर केंद्रित आहे.",
+            "जल जीवन मिशन": "JJM हा भारत सरकारच्या जल शक्ती मंत्रालयाचा प्रमुख कार्यक्रम आहे, ज्याचे उद्दिष्ट 2024 पर्यंत प्रत्येक ग्रामीण घराला कार्यक्षम घरगुती नळ जोडणी प्रदान करणे आहे.",
+            "jjm": "JJM हा भारत सरकारच्या जल शक्ती मंत्रालयाचा प्रमुख कार्यक्रम आहे, ज्याचे उद्दिष्ट 2024 पर्यंत प्रत्येक ग्रामीण घराला कार्यक्षम घरगुती नळ जोडणी प्रदान करणे आहे."
+            }
+        };
+
         // State Management
         let currentLanguage = 'mr'; // Default language set to Marathi
         let chatState = 'start';
@@ -1161,56 +1199,64 @@
         }
 
         function processUserMessage(message) {
-            const script = PGRS_SCRIPTS[currentLanguage];
-            const lowerMessage = message.toLowerCase();
-            
-            // If we're awaiting a grievance ID, process it
-            if (chatState === 'awaiting_grievance_id') {
-                // Reset placeholder
-                elements.chatInput.placeholder = script.input_placeholder;
-                processGrievanceId(message);
-                return;
-            }
-            
-            // Check for greetings first
-            if (isGreetingMessage(message)) {
-                setTimeout(() => {
-                    addMessage(script.greeting_response, false);
-                    setTimeout(() => {
-                        showSuggestionsInChat();
-                    }, 1000);
-                }, 500);
-                return;
-            }
-            
-            // Check for specific queries
-            if (lowerMessage.includes('status') || lowerMessage.includes('check') || 
-                lowerMessage.includes('स्थिती') || lowerMessage.includes('तपास')) {
-                setTimeout(() => {
-                    showGrievanceInput();
-                }, 500);
-            } else if (lowerMessage.includes('feedback') || lowerMessage.includes('rating') || 
-                    lowerMessage.includes('अभिप्राय') || lowerMessage.includes('द्या')) {
-                chatState = 'question3';
-                setTimeout(() => {
-                    addOptionsMessage(script.question3, [script.yes, script.no]);
-                }, 500);
-            } else if (lowerMessage.includes('register') || lowerMessage.includes('grievance') || 
-                    lowerMessage.includes('तक्रार') || lowerMessage.includes('नोंद')) {
-                chatState = 'start';
-                setTimeout(() => {
-                    addOptionsMessage(script.question1, [script.yes, script.no]);
-                }, 500);
-            } else {
-                // Handle unknown questions - show helpful response and suggestions
-                setTimeout(() => {
-                    addMessage(script.unknown_question, false);
-                    setTimeout(() => {
-                        showSuggestionsInChat();
-                    }, 1000);
-                }, 500);
-            }
+        const script = PGRS_SCRIPTS[currentLanguage];
+        const lowerMessage = message.toLowerCase();
+        
+        // If we're awaiting a grievance ID, process it
+        if (chatState === 'awaiting_grievance_id') {
+            elements.chatInput.placeholder = script.input_placeholder;
+            processGrievanceId(message);
+            return;
         }
+        
+        // Check for greetings first
+        if (isGreetingMessage(message)) {
+            setTimeout(() => {
+                addMessage(script.greeting_response, false);
+                setTimeout(() => {
+                    showSuggestionsInChat();
+                }, 1000);
+            }, 500);
+            return;
+        }
+        
+        // Try to find knowledge-based answer first
+        const knowledgeAnswer = searchKnowledge(message);
+        if (knowledgeAnswer) {
+            setTimeout(() => {
+                addMessage(knowledgeAnswer, false);
+            }, 500);
+            return;
+        }
+        
+        // Check for specific queries (existing code)
+        if (lowerMessage.includes('status') || lowerMessage.includes('check') || 
+            lowerMessage.includes('स्थिती') || lowerMessage.includes('तपास')) {
+            setTimeout(() => {
+                showGrievanceInput();
+            }, 500);
+        } else if (lowerMessage.includes('feedback') || lowerMessage.includes('rating') || 
+                lowerMessage.includes('अभिप्राय') || lowerMessage.includes('द्या')) {
+            chatState = 'question3';
+            setTimeout(() => {
+                addOptionsMessage(script.question3, [script.yes, script.no]);
+            }, 500);
+        } else if (lowerMessage.includes('register') || lowerMessage.includes('grievance') || 
+                lowerMessage.includes('तक्रार') || lowerMessage.includes('नोंद')) {
+            chatState = 'start';
+            setTimeout(() => {
+                addOptionsMessage(script.question1, [script.yes, script.no]);
+            }, 500);
+        } else {
+            // Handle unknown questions - show helpful response and suggestions
+            setTimeout(() => {
+                addMessage(script.unknown_question, false);
+                setTimeout(() => {
+                    showSuggestionsInChat();
+                }, 1000);
+            }, 500);
+        }
+    }
 
         function showTypingIndicator() {
             elements.typingIndicator.style.display = 'block';
@@ -1868,6 +1914,169 @@
         });
 
         console.log('PGRS ChatBot with Full Multilingual Support script loaded successfully');
+
+        // Enhanced knowledge search function
+        function searchKnowledge(query, language = currentLanguage) {
+            const kb = KNOWLEDGE_BASE[language] || KNOWLEDGE_BASE['en'];
+            const queryLower = query.toLowerCase().trim();
+            
+            // Remove common question words
+            const cleanQuery = queryLower.replace(/^(what is|what's|tell me about|explain|define)\s*/i, '');
+            
+            let bestMatch = null;
+            let bestScore = 0;
+            
+            // Enhanced abbreviation and acronym mapping
+           const abbreviations = {
+                'wssd': 'water supply sanitation department',
+                'mjp': 'maharashtra jeevan pradhikaran', 
+                'gsda': 'groundwater surveys development agency',
+                'jjm': 'jal jeevan mission',
+                'swsm': 'state water sanitation mission',
+                'pgrs': 'public grievance redressal system',
+                'maha jal': 'maha jal samadhan',
+                // Add Marathi mappings
+                'पाणी विभाग': 'पाणी पुरवठा स्वच्छता विभाग',
+                'एमजेपी': 'महाराष्ट्र जीवन प्राधिकरण',
+                'जेजेएम': 'जल जीवन मिशन',
+                'एसडब्ल्यूएसएम': 'राज्य जल स्वच्छता मिशन'
+            };
+            
+            // Expand abbreviations in the query with better pattern matching
+            let expandedQuery = cleanQuery;
+            for (const [abbr, full] of Object.entries(abbreviations)) {
+                const abbrLower = abbr.toLowerCase();
+                // Direct replacement
+                if (expandedQuery.includes(abbrLower)) {
+                    expandedQuery = expandedQuery.replace(new RegExp(abbrLower, 'g'), full);
+                }
+                // Handle variations with spaces and punctuation
+                if (expandedQuery.includes(abbrLower.replace(/\s+/g, ''))) {
+                    expandedQuery = expandedQuery.replace(new RegExp(abbrLower.replace(/\s+/g, ''), 'g'), full);
+                }
+            }
+            
+            // Special handling for transliterated queries
+            const transliterationMap = {
+                'kay aahe': 'what is',
+                'kay ahe': 'what is', 
+                'baddal mahiti': 'about information',
+                'mahiti dya': 'give information',
+                'sang': 'tell',
+                'sangu': 'tell'
+            };
+            
+            for (const [transliterated, english] of Object.entries(transliterationMap)) {
+                if (queryLower.includes(transliterated)) {
+                    expandedQuery = expandedQuery.replace(new RegExp(transliterated, 'g'), english);
+                }
+            }
+
+            // Marathi query patterns
+            const marathiPatterns = {
+                'kay aahe': 'काय आहे',
+                'mahiti': 'माहिती',
+                'sangaa': 'सांगा',
+                'paani': 'पाणी',
+                'vibhag': 'विभाग',
+                'mission': 'मिशन'
+            };
+
+            // Apply Marathi pattern matching if current language is Marathi
+            if (language === 'mr') {
+                for (const [transliterated, marathi] of Object.entries(marathiPatterns)) {
+                    if (expandedQuery.includes(transliterated)) {
+                        expandedQuery = expandedQuery.replace(new RegExp(transliterated, 'g'), marathi);
+                    }
+                }
+            }
+            
+            for (const [key, value] of Object.entries(kb)) {
+                let score = 0;
+                const keyLower = key.toLowerCase();
+                
+                // Direct match (highest priority)
+                if (keyLower.includes(cleanQuery) || cleanQuery.includes(keyLower)) {
+                    score += 10;
+                }
+                
+                // Expanded query match
+                if (keyLower.includes(expandedQuery) || expandedQuery.includes(keyLower)) {
+                    score += 8;
+                }
+                
+                // Abbreviation direct match
+                for (const [abbr, full] of Object.entries(abbreviations)) {
+                    if ((cleanQuery.includes(abbr) && keyLower.includes(full)) ||
+                        (keyLower.includes(abbr) && expandedQuery.includes(full))) {
+                        score += 7;
+                    }
+                }
+                
+                // Word-by-word matching
+                const keyWords = keyLower.split(' ');
+                const queryWords = expandedQuery.split(' ');
+                
+                for (const queryWord of queryWords) {
+                    if (queryWord.length > 2) {
+                        for (const keyWord of keyWords) {
+                            if (keyWord.includes(queryWord) || queryWord.includes(keyWord)) {
+                                score += 2;
+                            }
+                            // Partial match bonus
+                            if (queryWord.length > 3 && keyWord.length > 3) {
+                                const similarity = calculateSimilarity(queryWord, keyWord);
+                                if (similarity > 0.6) {
+                                    score += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMatch = value;
+                }
+            }
+            
+            // Lower threshold for better matching
+            return bestScore >= 2 ? bestMatch : null;
+        }
+        
+        // Simple string similarity function
+        function calculateSimilarity(str1, str2) {
+            const longer = str1.length > str2.length ? str1 : str2;
+            const shorter = str1.length > str2.length ? str2 : str1;
+            const editDistance = getEditDistance(longer, shorter);
+            return (longer.length - editDistance) / longer.length;
+        }
+        
+        // Levenshtein distance calculation
+        function getEditDistance(str1, str2) {
+            const matrix = [];
+            for (let i = 0; i <= str2.length; i++) {
+                matrix[i] = [i];
+            }
+            for (let j = 0; j <= str1.length; j++) {
+                matrix[0][j] = j;
+            }
+            for (let i = 1; i <= str2.length; i++) {
+                for (let j = 1; j <= str1.length; j++) {
+                    if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j] + 1
+                        );
+                    }
+                }
+            }
+            return matrix[str2.length][str1.length];
+        }
+
     </script>
 </body>
 </html>
