@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WSSD JJM</title>
+    <title>JJM</title>
     <style>
         * {
             margin: 0;
@@ -628,7 +628,7 @@
             color: white;
             cursor: pointer;
             transition: all 0.3s ease;
-            margin-top: 10px;
+            margin-top: -15px;
             align-self: center;
             box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
         }
@@ -693,59 +693,36 @@
             background: #27ae60;
         }
 
-        /* Quick Suggestions Styles */
-        .quick-suggestions {
-            margin-bottom: 15px;
-            max-height: 120px;
-            overflow-y: auto;
-        }
-
-        .quick-suggestions h4 {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 8px;
+        .suggestion-title {
+            font-size: 14px;
             font-weight: 600;
+            color: #495057;
+            margin-bottom: 12px;
         }
 
-        .suggestions-grid {
+        .suggestion-list {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 8px;
         }
 
-        .quick-suggestion-btn {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            padding: 8px 12px;
-            border-radius: 12px;
-            font-size: 11px;
-            color: #495057;
+        .suggestion-item {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 5px 10px;
             cursor: pointer;
             transition: all 0.2s ease;
+            font-size: 13px;
+            color: #495057;
             text-align: left;
-            line-height: 1.3;
         }
 
-        .quick-suggestion-btn:hover {
+        .suggestion-item:hover {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border-color: #667eea;
             transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
-        }
-
-        .quick-suggestion-btn:active {
-            transform: translateY(0);
-        }
-
-        /* Grievance Status Formatting Styles */
-        .grievance-status-container {
-            background: #f0f8ff;
-            border: 2px solid #4a90e2;
-            border-radius: 12px;
-            padding: 16px;
-            margin: 12px 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         .status-header {
@@ -830,6 +807,71 @@
                 bottom: 80px;
             }
         }
+        .suggestion-dropdown {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e1e8ed;
+            border-radius: 12px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s ease;
+            margin-bottom: 10px;
+            background: white;
+        }
+
+        .suggestion-dropdown:focus {
+            border-color: #574bf7ff;
+            box-shadow: 0 0 0 3px rgba(87, 75, 247, 0.1);
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .chat-text-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #e1e8ed;
+            border-radius: 24px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .chat-text-input:focus {
+            border-color: #574bf7ff;
+        }
+
+        .send-message-btn {
+            background: linear-gradient(135deg, #5161f1ff 0%, #858febff 100%);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .send-message-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+        }
+
+        .send-message-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .send-message-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: white;
+        }
     </style>
 </head>
 <body>
@@ -858,9 +900,9 @@
                 </div>
                 
                 <div class="language-selector">
-                    <select class="language-dropdown" id="languageSelect">
-                        <option value="en">English</option>
+                   <select class="language-dropdown" id="languageSelect">
                         <option value="mr">मराठी</option>
+                        <option value="en">English</option>
                     </select>
                 </div>
                 
@@ -878,27 +920,30 @@
             </div>
 
             <div class="chat-input-area">
-                <!-- Quick Suggestions Section -->
-                <div class="quick-suggestions" id="quickSuggestions">
-                    <h4 id="suggestionsTitle">Quick Suggestions:</h4>
-                    <div class="suggestions-grid" id="suggestionsGrid">
-                        <!-- Dynamic suggestions will be loaded here -->
-                    </div>
+                <!-- Permanent text input at bottom -->
+                <div class="chat-input-form">
+                    <input type="text" 
+                        class="chat-input" 
+                        id="chatInput" 
+                        placeholder="Ask your query here">
+                    <button class="send-btn" id="sendBtn" disabled>
+                        <svg viewBox="0 0 24 24">
+                            <path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/>
+                        </svg>
+                    </button>
                 </div>
-
+                
                 <div class="quick-actions">
                     <button class="quick-action-btn" id="restartBtn">Restart</button>
                     <button class="quick-action-btn" id="clearChatBtn">Clear Chat</button>
                 </div>
             </div>
-        </div>
-    </div>
 
     <script>
         // API Configuration
         const API_BASE_URL = 'http://localhost:8000';
         
-        // EXTENDED PGRS Scripts Configuration with UI translations
+       // Replace the PGRS_SCRIPTS object with this complete version
         const PGRS_SCRIPTS = {
             en: {
                 // Page elements
@@ -907,6 +952,13 @@
                 connectionStatus: "Ready to help",
                 restartBtn: "Restart",
                 clearChatBtn: "Clear Chat",
+                input_placeholder: "Ask your query here",
+                suggestions_title: "Questions you can ask me:",
+                
+                // Greeting and unknown responses
+                greeting_response: "Hello! Welcome to the Public Grievance Redressal System portal. How may I help you today?",
+                how_may_help: "How may I help you today?",
+                unknown_question: "I can help you with grievance registration, status checking, or providing feedback. Please choose from the suggestions above or be more specific.",
                 
                 // Conversation content
                 welcome: "Welcome to Public Grievance Redressal System portal AI-ChatBot.",
@@ -918,7 +970,7 @@
                 website_link: "https://mahajalsamadhan.in/log-grievance",
                 app_method: "2. Registering a Grievance via the Maha-Jal Samadhan Mobile App",
                 app_link: "https://play.google.com/store/apps/details?id=in.mahajalsamadhan.user&pli=1",
-                grievance_id_prompt: "Please enter your Grievance ID to check the status:",
+                grievance_id_prompt: "Please enter your Grievance ID or Mobile No. to check the status:",
                 grievance_id_input_label: "Enter Grievance ID (Example: G-12safeg7678)",
                 grievance_id_placeholder: "Type your Grievance ID here...",
                 check_status_btn: "Check Grievance Status",
@@ -957,6 +1009,13 @@
                 connectionStatus: "मदत करण्यासाठी तयार",
                 restartBtn: "पुन्हा सुरू करा",
                 clearChatBtn: "चॅट साफ करा",
+                input_placeholder: "तुमची क्वेरी येथे विचारा",
+                suggestions_title: "तुम्ही मला विचारू शकता:",
+                
+                // Greeting and unknown responses
+                greeting_response: "नमस्कार! सार्वजनिक तक्रार निवारण प्रणाली पोर्टलमध्ये आपले स्वागत आहे. आज मी आपल्याला कशी मदत करू शकतो?",
+                how_may_help: "आज मी आपल्याला कशी मदत करू शकतो?",
+                unknown_question: "मी आपल्याला तक्रार नोंदणी, स्थिती तपासणे किंवा अभिप्राय देण्यासाठी मदत करू शकतो. कृपया वरील सूचनांमधून निवडा किंवा अधिक स्पष्ट करा.",
                 
                 // Conversation content
                 welcome: "नमस्कार, सार्वजनिक तक्रार निवारण प्रणाली पोर्टल एआय-चॅटबॉटमध्ये आपले स्वागत आहे.",
@@ -968,7 +1027,7 @@
                 website_link: "https://mahajalsamadhan.in/log-grievance",
                 app_method: "२. महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर मोबाईल अ‍ॅपद्वारे तक्रार नोंदणी",
                 app_link: "https://play.google.com/store/apps/details?id=in.mahajalsamadhan.user&pli=1",
-                grievance_id_prompt: "स्थिती तपासण्यासाठी कृपया आपला तक्रार क्रमांक प्रविष्ट करा:",
+                grievance_id_prompt: "कृपया स्थिती तपासण्यासाठी आपला तक्रार आयडी किंवा मोबाइल क्रमांक प्रविष्ट करा:",
                 grievance_id_input_label: "तक्रार क्रमांक प्रविष्ट करा (उदाहरण: G-12safeg7678)",
                 grievance_id_placeholder: "आपला तक्रार क्रमांक येथे टाइप करा...",
                 check_status_btn: "तक्रार स्थिती तपासा",
@@ -1001,9 +1060,9 @@
                 ]
             }
         };
-
+        
         // State Management
-        let currentLanguage = 'en';
+        let currentLanguage = 'mr'; // Default language set to Marathi
         let chatState = 'start';
         let pendingGrievanceId = '';
         let selectedRating = null;
@@ -1020,10 +1079,8 @@
             languageSelect: document.getElementById('languageSelect'),
             restartBtn: document.getElementById('restartBtn'),
             clearChatBtn: document.getElementById('clearChatBtn'),
-            quickSuggestions: document.getElementById('quickSuggestions'),
-            suggestionsGrid: document.getElementById('suggestionsGrid'),
-            suggestionsTitle: document.getElementById('suggestionsTitle'),
-            // NEW: UI elements for translation
+            chatInput: document.getElementById('chatInput'), // Changed
+            sendBtn: document.getElementById('sendBtn'), // Changed
             pageTitle: document.getElementById('pageTitle'),
             chatTitle: document.getElementById('chatTitle'),
             connectionStatus: document.getElementById('connectionStatus')
@@ -1044,13 +1101,37 @@
             elements.restartBtn.textContent = script.restartBtn;
             elements.clearChatBtn.textContent = script.clearChatBtn;
             
-            // Update suggestions title
-            elements.suggestionsTitle.textContent = script.suggestions_title;
+            // Update input placeholder (cross-language hint)
+            if (elements.chatInput) {
+                elements.chatInput.placeholder = script.input_placeholder || "तुमची क्वेरी येथे विचारा";
+            }
+            
+            // Update language dropdown to show current selection
+            elements.languageSelect.value = currentLanguage;
         }
 
         // Utility Functions
         function generateSessionId() {
             return 'session_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        }
+        function isGreetingMessage(message) {
+            const lowerMessage = message.toLowerCase();
+            
+            // English greetings
+            const englishGreetings = [
+                'hello', 'hi', 'hey', 'good morning', 'good afternoon', 
+                'good evening', 'greetings', 'howdy', 'hiya', 'sup'
+            ];
+            
+            // Marathi greetings
+            const marathiGreetings = [
+                'नमस्कार', 'हॅलो', 'हाय', 'सकाळची नमस्कार', 
+                'दुपारची नमस्कार', 'संध्याकाळची नमस्कार', 'अभिवादन'
+            ];
+            
+            // Check if message contains any greeting
+            const allGreetings = [...englishGreetings, ...marathiGreetings];
+            return allGreetings.some(greeting => lowerMessage.includes(greeting));
         }
 
         function getCurrentTime() {
@@ -1065,6 +1146,70 @@
             setTimeout(() => {
                 elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
             }, 100);
+        }
+        function sendUserMessage() {
+            const message = elements.chatInput.value.trim();
+            if (message) {
+                addMessage(message, true);
+                elements.chatInput.value = '';
+                elements.sendBtn.disabled = true;
+                
+                setTimeout(() => {
+                    processUserMessage(message);
+                }, 500);
+            }
+        }
+
+        function processUserMessage(message) {
+            const script = PGRS_SCRIPTS[currentLanguage];
+            const lowerMessage = message.toLowerCase();
+            
+            // If we're awaiting a grievance ID, process it
+            if (chatState === 'awaiting_grievance_id') {
+                // Reset placeholder
+                elements.chatInput.placeholder = script.input_placeholder;
+                processGrievanceId(message);
+                return;
+            }
+            
+            // Check for greetings first
+            if (isGreetingMessage(message)) {
+                setTimeout(() => {
+                    addMessage(script.greeting_response, false);
+                    setTimeout(() => {
+                        showSuggestionsInChat();
+                    }, 1000);
+                }, 500);
+                return;
+            }
+            
+            // Check for specific queries
+            if (lowerMessage.includes('status') || lowerMessage.includes('check') || 
+                lowerMessage.includes('स्थिती') || lowerMessage.includes('तपास')) {
+                setTimeout(() => {
+                    showGrievanceInput();
+                }, 500);
+            } else if (lowerMessage.includes('feedback') || lowerMessage.includes('rating') || 
+                    lowerMessage.includes('अभिप्राय') || lowerMessage.includes('द्या')) {
+                chatState = 'question3';
+                setTimeout(() => {
+                    addOptionsMessage(script.question3, [script.yes, script.no]);
+                }, 500);
+            } else if (lowerMessage.includes('register') || lowerMessage.includes('grievance') || 
+                    lowerMessage.includes('तक्रार') || lowerMessage.includes('नोंद')) {
+                chatState = 'start';
+                setTimeout(() => {
+                    addOptionsMessage(script.question1, [script.yes, script.no]);
+                }, 500);
+            } else {
+                // Handle unknown questions - show helpful response and suggestions
+                setTimeout(() => {
+                    addMessage(script.unknown_question, false);
+                    setTimeout(() => {
+                        showSuggestionsInChat();
+                    }, 1000);
+                }, 500);
+            }
         }
 
         function showTypingIndicator() {
@@ -1374,20 +1519,44 @@
             }
         }
 
-        function loadQuickSuggestions() {
+        function showSuggestionsInChat() {
             const script = PGRS_SCRIPTS[currentLanguage];
-            elements.suggestionsTitle.textContent = script.suggestions_title;
             
-            elements.suggestionsGrid.innerHTML = '';
+            const suggestionDiv = document.createElement('div');
+            suggestionDiv.className = 'message bot';
             
-            script.suggestions.forEach(suggestion => {
-                const suggestionBtn = document.createElement('button');
-                suggestionBtn.className = 'quick-suggestion-btn';
-                suggestionBtn.textContent = suggestion;
-                suggestionBtn.addEventListener('click', () => {
+            let suggestionsHtml = `
+                <div class="suggestion-message">
+                    <div class="suggestion-title">${script.suggestions_title}</div>
+                    <div class="suggestion-list">
+            `;
+            
+            script.suggestions.forEach((suggestion, index) => {
+                suggestionsHtml += `<div class="suggestion-item" data-suggestion="${index}">${suggestion}</div>`;
+            });
+            
+            suggestionsHtml += `
+                    </div>
+                </div>
+            `;
+            
+            suggestionDiv.innerHTML = `
+                <div class="message-content">
+                    ${suggestionsHtml}
+                    <div class="message-time">${getCurrentTime()}</div>
+                </div>
+            `;
+            
+            elements.chatMessages.insertBefore(suggestionDiv, elements.typingIndicator);
+            scrollToBottom();
+            
+            // Add click handlers for suggestions
+            suggestionDiv.querySelectorAll('.suggestion-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const suggestionIndex = parseInt(e.target.dataset.suggestion);
+                    const suggestion = script.suggestions[suggestionIndex];
                     handleQuickSuggestion(suggestion);
                 });
-                elements.suggestionsGrid.appendChild(suggestionBtn);
             });
         }
 
@@ -1396,56 +1565,12 @@
             chatState = 'awaiting_grievance_id';
             const script = PGRS_SCRIPTS[currentLanguage];
             
-            const inputDiv = document.createElement('div');
-            inputDiv.className = 'message bot';
-            inputDiv.innerHTML = `
-                <div class="message-content">
-                    ${script.grievance_id_prompt}
-                    <div style="background: #e8f4fd; border: 3px solid #2196f3; border-radius: 15px; padding: 20px; margin: 15px 0;">
-                        <div style="margin-bottom: 10px; font-weight: bold; color: #1976d2;">
-                            ${script.grievance_id_input_label}
-                        </div>
-                        <input type="text" 
-                               id="grievanceInput" 
-                               placeholder="${script.grievance_id_placeholder}" 
-                               style="width: 100%; padding: 15px; border: 2px solid #2196f3; border-radius: 8px; font-size: 16px; margin-bottom: 15px; outline: none;"
-                               maxlength="50">
-                        <button id="checkStatusBtn" 
-                                style="width: 100%; padding: 15px; background: #2196f3; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: not-allowed;" 
-                                disabled>
-                            ${script.check_status_btn}
-                        </button>
-                    </div>
-                    <div class="message-time">${getCurrentTime()}</div>
-                </div>
-            `;
+            // Just show the prompt message
+            addMessage(script.grievance_id_prompt, false);
             
-            elements.chatMessages.insertBefore(inputDiv, elements.typingIndicator);
-            scrollToBottom();
-            
-            const input = document.getElementById('grievanceInput');
-            const button = document.getElementById('checkStatusBtn');
-            
-            input.addEventListener('input', function() {
-                const hasValue = this.value.trim().length > 0;
-                button.disabled = !hasValue;
-                button.style.backgroundColor = hasValue ? '#2196f3' : '#ccc';
-                button.style.cursor = hasValue ? 'pointer' : 'not-allowed';
-            });
-            
-            input.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter' && !button.disabled) {
-                    processGrievanceId(this.value.trim());
-                }
-            });
-            
-            button.addEventListener('click', function() {
-                if (!this.disabled) {
-                    processGrievanceId(input.value.trim());
-                }
-            });
-            
-            input.focus();
+            // Update main chat input placeholder
+            elements.chatInput.placeholder = script.grievance_id_placeholder;
+            elements.chatInput.focus();
         }
 
         async function fetchGrievanceStatus(grievanceId, language) {
@@ -1471,15 +1596,6 @@
 
         async function processGrievanceId(grievanceId) {
             const script = PGRS_SCRIPTS[currentLanguage];
-
-            const input = document.getElementById('grievanceInput');
-            const button = document.getElementById('checkStatusBtn');
-            input.disabled = true;
-            button.disabled = true;
-            button.textContent = script.processing;
-            button.style.backgroundColor = '#999';
-
-            addMessage(grievanceId, true);
 
             const grievancePattern = /^G-[A-Za-z0-9]{8,}$/i;
             if (!grievancePattern.test(grievanceId)) {
@@ -1537,13 +1653,8 @@
         function handleQuickSuggestion(suggestion) {
             addMessage(suggestion, true);
             
-            elements.quickSuggestions.style.display = 'none';
-            
             setTimeout(() => {
                 processQuickSuggestion(suggestion);
-                setTimeout(() => {
-                    elements.quickSuggestions.style.display = 'block';
-                }, 1000);
             }, 500);
         }
 
@@ -1650,7 +1761,7 @@
                 if (!currentSessionId) {
                     currentSessionId = generateSessionId();
                 }
-                loadQuickSuggestions();
+                // Remove this line: loadQuickSuggestions();
                 if (chatState === 'start' && elements.chatMessages.querySelectorAll('.message').length === 0) {
                     startConversation();
                 }
@@ -1660,45 +1771,48 @@
         function startConversation() {
             const script = PGRS_SCRIPTS[currentLanguage];
             
+            // Clear existing messages
             const existingMessages = elements.chatMessages.querySelectorAll('.message');
             existingMessages.forEach(msg => msg.remove());
             
+            // Reset state
             pendingGrievanceId = '';
             chatState = 'start';
-            elements.quickSuggestions.style.display = 'block';
             
             setTimeout(() => {
-                addMessage(script.welcome);
+                addMessage(script.welcome, false);
                 setTimeout(() => {
-                    addOptionsMessage(script.question1, [script.yes, script.no]);
+                    // Show suggestions in chat
+                    showSuggestionsInChat();
+                    setTimeout(() => {
+                        addOptionsMessage(script.question1, [script.yes, script.no]);
+                    }, 1000);
                 }, 1000);
             }, 500);
         }
 
-        function clearChat() {
+       function clearChat() {
             const messages = elements.chatMessages.querySelectorAll('.message, .status-indicator');
             messages.forEach(msg => msg.remove());
             chatState = 'start';
             selectedRating = null;
             pendingGrievanceId = '';
             currentSessionId = generateSessionId();
-            elements.quickSuggestions.style.display = 'block';
-            loadQuickSuggestions();
+            // Remove this line: loadQuickSuggestions();
         }
 
         // UPDATED: Enhanced language update function
         function updateLanguage(langCode) {
+            const previousLanguage = currentLanguage;
             currentLanguage = langCode;
             
             // Update ALL UI elements immediately
             updateUILanguage();
             
-            // Update quick suggestions
-            loadQuickSuggestions();
-            
             // If chat is active, show language switch message and restart
             if (isWindowOpen && elements.chatMessages.querySelectorAll('.message').length > 0) {
-                const script = PGRS_SCRIPTS[langCode];
+                // Show message in the NEW language about switching FROM the previous language
+                const script = PGRS_SCRIPTS[currentLanguage];
                 addMessage(script.language_switch_msg);
                 setTimeout(() => {
                     startConversation();
@@ -1710,6 +1824,23 @@
         elements.chatBubble.addEventListener('click', toggleChatWindow);
         elements.closeChat.addEventListener('click', toggleChatWindow);
         
+        // Text input handlers
+        elements.chatInput.addEventListener('input', function() {
+            const hasValue = this.value.trim().length > 0;
+            elements.sendBtn.disabled = !hasValue;
+        });
+
+        elements.chatInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !elements.sendBtn.disabled) {
+                sendUserMessage();
+            }
+        });
+
+        elements.sendBtn.addEventListener('click', function() {
+            if (!this.disabled) {
+                sendUserMessage();
+            }
+        });
         elements.languageSelect.addEventListener('change', (e) => {
             updateLanguage(e.target.value);
         });
@@ -1726,8 +1857,14 @@
         document.addEventListener('DOMContentLoaded', () => {
             console.log('PGRS ChatBot with Full Multilingual Support initialized');
             currentSessionId = generateSessionId();
-            updateUILanguage(); // Initialize UI with default language
-            loadQuickSuggestions();
+            
+            // Set language dropdown to default (Marathi)
+            elements.languageSelect.value = currentLanguage;
+            
+            // Initialize UI with default language (Marathi)
+            updateUILanguage();
+            
+            console.log('Default language set to:', currentLanguage);
         });
 
         console.log('PGRS ChatBot with Full Multilingual Support script loaded successfully');
