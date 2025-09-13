@@ -970,12 +970,12 @@
                 website_link: "https://mahajalsamadhan.in/log-grievance",
                 app_method: "2. Registering a Grievance via the Maha-Jal Samadhan Mobile App",
                 app_link: "https://play.google.com/store/apps/details?id=in.mahajalsamadhan.user&pli=1",
-                grievance_id_prompt: "Please enter your Grievance ID or Mobile No. to check the status:",
-                grievance_id_input_label: "Enter Grievance ID (Example: G-12safeg7678)",
-                grievance_id_placeholder: "Type your Grievance ID here...",
+                grievance_id_prompt: "Please enter your Grievance ID or Mobile Number to check the status:",
+                grievance_id_input_label: "Enter Grievance ID (Example: G-12safeg7678) or Mobile Number (Example: 9876543210)",
+                grievance_id_placeholder: "Type your Grievance ID or Mobile Number here...",
+                invalid_grievance_id: "Please provide a valid Grievance ID (e.g., G-12safeg7678) or 10-digit mobile number (e.g., 9876543210).",
                 check_status_btn: "Check Grievance Status",
                 processing: "Processing...",
-                invalid_grievance_id: "The Grievance ID you have entered is incorrect or invalid. Please enter the correct Grievance ID to proceed.",
                 status_prefix: "The current status of your Grievance is as follows:",
                 rating_request: "Please provide your rating between 1 and 5:",
                 rating_title: "Rate our service quality",
@@ -1028,12 +1028,12 @@
                 website_link: "https://mahajalsamadhan.in/log-grievance",
                 app_method: "२. महा-जल समाधान सार्वजनिक तक्रार निवारण प्रणालीवर मोबाईल अ‍ॅपद्वारे तक्रार नोंदणी",
                 app_link: "https://play.google.com/store/apps/details?id=in.mahajalsamadhan.user&pli=1",
-                grievance_id_prompt: "कृपया स्थिती तपासण्यासाठी आपला तक्रार आयडी किंवा मोबाइल क्रमांक प्रविष्ट करा:",
-                grievance_id_input_label: "तक्रार क्रमांक प्रविष्ट करा (उदाहरण: G-12safeg7678)",
-                grievance_id_placeholder: "आपला तक्रार क्रमांक येथे टाइप करा...",
+                grievance_id_prompt: "कृपया स्थिती तपासण्यासाठी आपला तक्रार क्रमांक किंवा मोबाइल नंबर प्रविष्ट करा:",
+                grievance_id_input_label: "तक्रार क्रमांक (उदाहरण: G-12safeg7678) किंवा मोबाइल नंबर (उदाहरण: 9876543210) प्रविष्ट करा",
+                grievance_id_placeholder: "आपला तक्रार क्रमांक किंवा मोबाइल नंबर येथे टाइप करा...",
+                invalid_grievance_id: "कृपया वैध तक्रार क्रमांक (उदा. G-12safeg7678) किंवा 10-अंकी मोबाइल नंबर (उदा. 9876543210) प्रदान करा.",
                 check_status_btn: "तक्रार स्थिती तपासा",
                 processing: "प्रक्रिया करत आहे...",
-                invalid_grievance_id: "आपण आपल्या तक्रारीचा क्रमांक चुकीचा दाखल केला आहे. कृपया योग्य तक्रार क्रमांक दाखल करा.",
                 status_prefix: "आपल्या तक्रारीची सद्यस्थिती पुढीलप्रमाणे आहे:",
                 rating_request: "कृपया आपल्याद्वारे देण्यात आलेले गुण १ ते ५ मध्ये द्या:",
                 rating_title: "आमच्या सेवेची गुणवत्ता रेट करा",
@@ -1199,64 +1199,80 @@
         }
 
         function processUserMessage(message) {
-        const script = PGRS_SCRIPTS[currentLanguage];
-        const lowerMessage = message.toLowerCase();
-        
-        // If we're awaiting a grievance ID, process it
-        if (chatState === 'awaiting_grievance_id') {
-            elements.chatInput.placeholder = script.input_placeholder;
-            processGrievanceId(message);
-            return;
-        }
-        
-        // Check for greetings first
-        if (isGreetingMessage(message)) {
-            setTimeout(() => {
-                addMessage(script.greeting_response, false);
+            const script = PGRS_SCRIPTS[currentLanguage];
+            const lowerMessage = message.toLowerCase();
+            
+            // If we're awaiting a grievance ID, process it
+            if (chatState === 'awaiting_grievance_id') {
+                elements.chatInput.placeholder = script.input_placeholder;
+                processGrievanceId(message);
+                return;
+            }
+            
+            // Auto-detect if message contains grievance ID or mobile number
+            const grievanceIdPattern = /G-[A-Za-z0-9]{8,}/i;
+            const mobilePattern = /\b[6-9]\d{9}\b/;
+            
+            if (grievanceIdPattern.test(message) || mobilePattern.test(message)) {
+                const identifier = grievanceIdPattern.test(message) 
+                    ? message.match(grievanceIdPattern)[0]
+                    : message.match(mobilePattern)[0];
+                
                 setTimeout(() => {
-                    showSuggestionsInChat();
-                }, 1000);
-            }, 500);
-            return;
-        }
-        
-        // Try to find knowledge-based answer first
-        const knowledgeAnswer = searchKnowledge(message);
-        if (knowledgeAnswer) {
-            setTimeout(() => {
-                addMessage(knowledgeAnswer, false);
-            }, 500);
-            return;
-        }
-        
-        // Check for specific queries (existing code)
-        if (lowerMessage.includes('status') || lowerMessage.includes('check') || 
-            lowerMessage.includes('स्थिती') || lowerMessage.includes('तपास')) {
-            setTimeout(() => {
-                showGrievanceInput();
-            }, 500);
-        } else if (lowerMessage.includes('feedback') || lowerMessage.includes('rating') || 
-                lowerMessage.includes('अभिप्राय') || lowerMessage.includes('द्या')) {
-            chatState = 'question3';
-            setTimeout(() => {
-                addOptionsMessage(script.question3, [script.yes, script.no]);
-            }, 500);
-        } else if (lowerMessage.includes('register') || lowerMessage.includes('grievance') || 
-                lowerMessage.includes('तक्रार') || lowerMessage.includes('नोंद')) {
-            chatState = 'start';
-            setTimeout(() => {
-                addOptionsMessage(script.question1, [script.yes, script.no]);
-            }, 500);
-        } else {
-            // Handle unknown questions - show helpful response and suggestions
-            setTimeout(() => {
-                addMessage(script.unknown_question, false);
+                    chatState = 'awaiting_grievance_id';
+                    processGrievanceId(identifier);
+                }, 500);
+                return;
+            }
+            
+            // Check for greetings first
+            if (isGreetingMessage(message)) {
                 setTimeout(() => {
-                    showSuggestionsInChat();
-                }, 1000);
-            }, 500);
+                    addMessage(script.greeting_response, false);
+                    setTimeout(() => {
+                        showSuggestionsInChat();
+                    }, 1000);
+                }, 500);
+                return;
+            }
+            
+            // Try to find knowledge-based answer first
+            const knowledgeAnswer = searchKnowledge(message);
+            if (knowledgeAnswer) {
+                setTimeout(() => {
+                    addMessage(knowledgeAnswer, false);
+                }, 500);
+                return;
+            }
+            
+            // Check for specific queries
+            if (lowerMessage.includes('status') || lowerMessage.includes('check') || 
+                lowerMessage.includes('स्थिती') || lowerMessage.includes('तपास')) {
+                setTimeout(() => {
+                    showGrievanceInput();
+                }, 500);
+            } else if (lowerMessage.includes('feedback') || lowerMessage.includes('rating') || 
+                    lowerMessage.includes('अभिप्राय') || lowerMessage.includes('द्या')) {
+                chatState = 'question3';
+                setTimeout(() => {
+                    addOptionsMessage(script.question3, [script.yes, script.no]);
+                }, 500);
+            } else if (lowerMessage.includes('register') || lowerMessage.includes('grievance') || 
+                    lowerMessage.includes('तक्रार') || lowerMessage.includes('नोंद')) {
+                chatState = 'start';
+                setTimeout(() => {
+                    addOptionsMessage(script.question1, [script.yes, script.no]);
+                }, 500);
+            } else {
+                // Handle unknown questions - show helpful response and suggestions
+                setTimeout(() => {
+                    addMessage(script.unknown_question, false);
+                    setTimeout(() => {
+                        showSuggestionsInChat();
+                    }, 1000);
+                }, 500);
+            }
         }
-    }
 
         function showTypingIndicator() {
             elements.typingIndicator.style.display = 'block';
@@ -1611,11 +1627,19 @@
             chatState = 'awaiting_grievance_id';
             const script = PGRS_SCRIPTS[currentLanguage];
             
-            // Just show the prompt message
-            addMessage(script.grievance_id_prompt, false);
+            // Enhanced prompt message with both options
+            const promptMsg = currentLanguage === 'en' 
+                ? "Please enter your Grievance ID (e.g., G-12safeg7678) or Mobile Number (e.g., 9876543210) to check status:"
+                : "कृपया स्थिती तपासण्यासाठी आपला तक्रार क्रमांक (उदा. G-12safeg7678) किंवा मोबाइल नंबर (उदा. 9876543210) प्रविष्ट करा:";
             
-            // Update main chat input placeholder
-            elements.chatInput.placeholder = script.grievance_id_placeholder;
+            addMessage(promptMsg, false);
+            
+            // Update placeholder with both options
+            const placeholderMsg = currentLanguage === 'en'
+                ? "Enter Grievance ID or Mobile Number..."
+                : "तक्रार क्रमांक किंवा मोबाइल नंबर प्रविष्ट करा...";
+            
+            elements.chatInput.placeholder = placeholderMsg;
             elements.chatInput.focus();
         }
 
@@ -1640,13 +1664,23 @@
             }
         }
 
-        async function processGrievanceId(grievanceId) {
+        async function processGrievanceId(input) {
             const script = PGRS_SCRIPTS[currentLanguage];
-
+            
+            // Updated validation to accept both grievance ID and mobile number formats
             const grievancePattern = /^G-[A-Za-z0-9]{8,}$/i;
-            if (!grievancePattern.test(grievanceId)) {
+            const mobilePattern = /^[6-9]\d{9}$/; // 10-digit Indian mobile number
+            
+            const isValidGrievanceId = grievancePattern.test(input.trim());
+            const isValidMobileNumber = mobilePattern.test(input.replace(/\D/g, '')); // Remove non-digits
+            
+            if (!isValidGrievanceId && !isValidMobileNumber) {
                 setTimeout(() => {
-                    addMessage(script.invalid_grievance_id, false);
+                    // Updated error message to mention both options
+                    const errorMsg = currentLanguage === 'en' 
+                        ? "Please provide a valid Grievance ID (e.g., G-12safeg7678) or 10-digit mobile number (e.g., 9876543210)."
+                        : "कृपया वैध तक्रार क्रमांक (उदा. G-12safeg7678) किंवा 10-अंकी मोबाइल नंबर (उदा. 9876543210) प्रदान करा.";
+                    addMessage(errorMsg, false);
                     setTimeout(() => {
                         showGrievanceInput();
                     }, 1500);
@@ -1657,7 +1691,9 @@
             showTypingIndicator();
 
             try {
-                const result = await fetchGrievanceStatus(grievanceId, currentLanguage);
+                // Clean mobile number if it's a mobile number input
+                const cleanInput = isValidMobileNumber ? input.replace(/\D/g, '') : input.trim();
+                const result = await fetchGrievanceStatus(cleanInput, currentLanguage);
 
                 if (result.success) {
                     hideTypingIndicator();
@@ -1675,7 +1711,7 @@
                     elements.chatMessages.insertBefore(messageDiv, elements.typingIndicator);
                     scrollToBottom();
                     
-                    pendingGrievanceId = grievanceId;
+                    pendingGrievanceId = cleanInput;
                     setTimeout(() => {
                         chatState = 'question3';
                         addOptionsMessage(script.question3, [script.yes, script.no]);
