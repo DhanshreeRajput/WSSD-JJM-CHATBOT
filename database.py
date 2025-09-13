@@ -44,25 +44,91 @@ class DatabaseManager:
             await self.pool.close()
             logger.info("🔒 Database connection pool closed")
     
-    async def get_grievance_status_by_unique_number(self, grievance_unique_number: str) -> Optional[Dict[str, Any]]:
+    async def get_grievance_status(self, identifier: str) -> Optional[Dict[str, Any]]:
+        """
+        Get grievance status by either grievance_unique_number OR mobile_number
+        This method now handles both identifier types automatically
+        """
         if not self.pool:
             logger.error("Database pool not initialized")
             return None
+        
+        try:
+            async with self.pool.acquire() as connection:
+                # First try by grievance_unique_number
+                query_by_unique_number = '''
+                SELECT gd.*, g.grievance_unique_number
+                FROM public.grievance_detail2 gd
+                INNER JOIN public.grievances g ON gd.grievance_id = g.id
+                WHERE g.grievance_unique_number = $1
+                '''
+                
+                result = await connection.fetchrow(query_by_unique_number, identifier)
+                
+                # If not found by unique number, try by mobile number
+                if not result:
+                    logger.info(f"Grievance not found by unique number, trying mobile number: {identifier}")
+                    query_by_mobile = '''
+                    SELECT gd.*, g.grievance_unique_number
+                    FROM public.grievance_detail2 gd
+                    INNER JOIN public.grievances g ON gd.grievance_id = g.id
+                    WHERE gd.mobile_number = $1 OR g.mobile_number = $1
+                    ORDER BY gd.grievance_logged_date DESC
+                    LIMIT 1
+                    '''
+                    
+                    result = await connection.fetchrow(query_by_mobile, identifier)
+                    
+                    if result:
+                        logger.info(f"Grievance found by mobile number: {identifier}")
+                
+                if result:
+                    return dict(result)
+                else:
+                    logger.info(f"No grievance found for identifier: {identifier}")
+                    return None
+                    
+        except Exception as e:
+            logger.error(f"DB error fetching grievance status: {e}")
+            return None
+
+    async def get_grievance_status_by_unique_number(self, grievance_unique_number: str) -> Optional[Dict[str, Any]]:
+        """
+        Deprecated: Use get_grievance_status instead
+        Kept for backward compatibility
+        """
+        return await self.get_grievance_status(grievance_unique_number)
+
+    async def get_grievance_status_by_mobile_number(self, mobile_number: str) -> Optional[Dict[str, Any]]:
+        """
+        Get grievance status by mobile number (latest grievance for the mobile number)
+        """
+        if not self.pool:
+            logger.error("Database pool not initialized")
+            return None
+        
         try:
             async with self.pool.acquire() as connection:
                 query = '''
                 SELECT gd.*, g.grievance_unique_number
                 FROM public.grievance_detail2 gd
                 INNER JOIN public.grievances g ON gd.grievance_id = g.id
-                WHERE g.grievance_unique_number = $1
+                WHERE gd.mobile_number = $1 OR g.mobile_number = $1
+                ORDER BY gd.grievance_logged_date DESC
+                LIMIT 1
                 '''
-                result = await connection.fetchrow(query, grievance_unique_number)
-            if result:
-                return dict(result)
-            else:
-                return None
+                
+                result = await connection.fetchrow(query, mobile_number)
+                
+                if result:
+                    logger.info(f"Grievance found by mobile number: {mobile_number}")
+                    return dict(result)
+                else:
+                    logger.info(f"No grievance found for mobile number: {mobile_number}")
+                    return None
+                    
         except Exception as e:
-            logger.error(f"DB error fetching by unique_number: {e}")
+            logger.error(f"DB error fetching by mobile number: {e}")
             return None
 
     async def test_connection(self) -> bool:
@@ -159,9 +225,9 @@ async def close_database():
     """Close the database connection pool"""
     await db_manager.close_pool()
 
-async def get_grievance_status(grievance_id: str) -> Optional[Dict[str, Any]]:
-    """Get grievance status (wrapper)"""
-    return await db_manager.get_grievance_status(grievance_id)
+async def get_grievance_status(identifier: str) -> Optional[Dict[str, Any]]:
+    """Get grievance status by either grievance_unique_number or mobile_number"""
+    return await db_manager.get_grievance_status(identifier)
 
 async def search_user_grievances(user_identifier: str) -> List[Dict[str, Any]]:
     """Search grievances by user (wrapper)"""

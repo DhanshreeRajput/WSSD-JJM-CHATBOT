@@ -322,6 +322,71 @@ def validate_grievance_id_format(grievance_id: str) -> bool:
             return True
     return False
 
+def detect_mobile_number(text: str) -> Optional[str]:
+    """Detect Indian mobile number patterns in text."""
+    # Remove all non-digit characters except + and spaces
+    clean_text = re.sub(r'[^\d+\s]', '', text)
+    
+    # Indian mobile number patterns
+    patterns = [
+        r'\b(\+91[\s-]?)?([6-9]\d{9})\b',  # +91 followed by 10-digit number starting with 6-9
+        r'\b([6-9]\d{9})\b',                # 10-digit number starting with 6-9
+        r'\b(0\d{10})\b'                    # 11-digit number starting with 0
+    ]
+    
+    for pattern in patterns:
+        matches = re.finditer(pattern, clean_text)
+        for match in matches:
+            # Extract the mobile number (without country code for consistency)
+            if match.group(1) and match.group(2):  # +91 pattern
+                mobile = match.group(2)
+            elif match.group(1):  # 10-digit pattern
+                mobile = match.group(1)
+            else:  # 11-digit pattern
+                mobile = match.group(0)[1:]  # Remove leading 0
+            
+            # Validate it's exactly 10 digits starting with 6-9
+            if len(mobile) == 10 and mobile[0] in '6789':
+                return mobile
+    
+    return None
+
+def validate_mobile_number_format(mobile_number: str) -> bool:
+    """Validate if the mobile number matches Indian format."""
+    # Remove all non-digit characters
+    digits_only = re.sub(r'\D', '', mobile_number)
+    
+    # Should be exactly 10 digits starting with 6, 7, 8, or 9
+    if len(digits_only) == 10 and digits_only[0] in '6789':
+        return True
+    
+    # Handle +91 prefix case
+    if len(digits_only) == 12 and digits_only.startswith('91') and digits_only[2] in '6789':
+        return True
+    
+    # Handle 0 prefix case (11 digits)
+    if len(digits_only) == 11 and digits_only.startswith('0') and digits_only[1] in '6789':
+        return True
+        
+    return False
+
+def detect_grievance_id_or_mobile(text: str) -> tuple[Optional[str], str]:
+    """
+    Detect either grievance ID or mobile number and return the type
+    Returns: (identifier, type) where type is 'grievance_id', 'mobile_number', or None
+    """
+    # First try to detect grievance ID
+    grievance_id = detect_grievance_id(text)
+    if grievance_id and validate_grievance_id_format(grievance_id):
+        return grievance_id, 'grievance_id'
+    
+    # Then try to detect mobile number
+    mobile_number = detect_mobile_number(text)
+    if mobile_number and validate_mobile_number_format(mobile_number):
+        return mobile_number, 'mobile_number'
+    
+    return None, None
+
 def detect_exact_status_question(text: str, language: str) -> bool:
     """Detect the exact status check question."""
     text_lower = text.lower().strip()
@@ -481,15 +546,37 @@ async def process_maha_jal_query(input_text: str, session_id: str, language: str
     """Process user queries for the Maha-Jal system."""
     logger.info(f"Processing query: {input_text} for session: {session_id} in language: {language}")
 
-    grievance_id = detect_grievance_id(input_text)
-    if grievance_id:
-        logger.info(f"Detected grievance ID: {grievance_id}")
-        grievance_data = await db_manager.get_grievance_status(grievance_id)
-        if grievance_data:
-            logger.info(f"Found grievance data: {grievance_data}")
-            return format_simple_grievance_status(grievance_data, language)
-        else:
-            return MAHA_JAL_KNOWLEDGE_BASE[language]["grievance_not_found"]
+    # Try to detect either grievance ID or mobile number
+    identifier, identifier_type = detect_grievance_id_or_mobile(input_text)
+    
+    if identifier and identifier_type:
+        logger.info(f"Detected {identifier_type}: {identifier}")
+        try:
+            grievance_data = await db_manager.get_grievance_status(identifier)
+            if grievance_data:
+                logger.info(f"Found grievance data for {identifier_type}: {grievance_data}")
+                status_response = format_simple_grievance_status(grievance_data, language)
+                
+                # Add appropriate tracking message based on identifier type
+                if identifier_type == 'mobile_number':
+                    if language == "mr":
+                        status_response += f"\n\n📱 मोबाइल नंबरद्वारे शोधले गेले: {identifier}"
+                    else:
+                        status_response += f"\n\n📱 Found using mobile number: {identifier}"
+                
+                status_response += f"\n\n🔗 {MAHA_JAL_KNOWLEDGE_BASE[language]['track_grievance_help']}"
+                return status_response
+            else:
+                if identifier_type == 'mobile_number':
+                    if language == "mr":
+                        return f"माफ करा, {identifier} या मोबाइल नंबरसाठी कोणतीही तक्रार आढळली नाही. कृपया आपला तक्रार क्रमांक किंवा नोंदणीकृत मोबाइल नंबर तपासा."
+                    else:
+                        return f"Sorry, no grievance found for mobile number {identifier}. Please check your grievance ID or registered mobile number."
+                else:
+                    return MAHA_JAL_KNOWLEDGE_BASE[language]["grievance_not_found"]
+        except Exception as e:
+            logger.error(f"Error fetching grievance status: {e}")
+            return MAHA_JAL_KNOWLEDGE_BASE[language]["database_error"]
 
     # Initialize user session state if not present
     if session_id not in USER_SESSION_STATE:
@@ -500,43 +587,82 @@ async def process_maha_jal_query(input_text: str, session_id: str, language: str
 
     # **Step 1: Status Check Flow**
     if detect_exact_status_question(input_text, language):
-        grievance_id = detect_grievance_id(input_text) or input_text.strip()
-        if grievance_id and validate_grievance_id_format(grievance_id):
+        identifier, identifier_type = detect_grievance_id_or_mobile(input_text)
+        
+        if identifier and (validate_grievance_id_format(identifier) or validate_mobile_number_format(identifier)):
             try:
-                grievance_data = await get_grievance_status(grievance_id)
+                grievance_data = await get_grievance_status(identifier)
                 if grievance_data:
                     session_state["stage"] = "status_shown"
                     status_response = format_simple_grievance_status(grievance_data, language)
+                    
+                    # Add identifier type info
+                    if identifier_type == 'mobile_number':
+                        if language == "mr":
+                            status_response += f"\n\n📱 मोबाइल नंबरद्वारे शोधले गेले: {identifier}"
+                        else:
+                            status_response += f"\n\n📱 Found using mobile number: {identifier}"
+                    
                     status_response += f"\n\n🔗 {MAHA_JAL_KNOWLEDGE_BASE[language]['track_grievance_help']}"
                     return status_response
                 else:
-                    return MAHA_JAL_KNOWLEDGE_BASE[language]["grievance_not_found"]
+                    if identifier_type == 'mobile_number':
+                        if language == "mr":
+                            return f"माफ करा, {identifier} या मोबाइल नंबरसाठी कोणतीही तक्रार आढळली नाही."
+                        else:
+                            return f"Sorry, no grievance found for mobile number {identifier}."
+                    else:
+                        return MAHA_JAL_KNOWLEDGE_BASE[language]["grievance_not_found"]
             except Exception as e:
                 logger.error(f"Error fetching grievance status: {e}")
                 return MAHA_JAL_KNOWLEDGE_BASE[language]["database_error"]
         else:
             session_state["stage"] = "waiting_for_grievance_id"
-            return MAHA_JAL_KNOWLEDGE_BASE[language]["grievance_id_prompt"]
+            if language == "mr":
+                return f"""{MAHA_JAL_KNOWLEDGE_BASE[language]["grievance_id_prompt"]}
+किंवा आपला नोंदणीकृत मोबाइल नंबर प्रविष्ट करा (उदाहरणार्थ: 9876543210)"""
+            else:
+                return f"""{MAHA_JAL_KNOWLEDGE_BASE[language]["grievance_id_prompt"]}
+Or enter your registered mobile number (Example: 9876543210)"""
 
-    # **Step 2: If waiting for ID, try again**
+    # **Step 2: If waiting for ID or mobile, try again**
     if session_state.get("stage") == "waiting_for_grievance_id":
-        grievance_id = detect_grievance_id(input_text) or input_text.strip()
-        if grievance_id and validate_grievance_id_format(grievance_id):
+        identifier, identifier_type = detect_grievance_id_or_mobile(input_text)
+        
+        if identifier and (validate_grievance_id_format(identifier) or validate_mobile_number_format(identifier)):
             try:
-                grievance_data = await get_grievance_status(grievance_id)
+                grievance_data = await get_grievance_status(identifier)
                 if grievance_data:
                     session_state["stage"] = "status_shown"
                     status_response = format_simple_grievance_status(grievance_data, language)
+                    
+                    # Add identifier type info
+                    if identifier_type == 'mobile_number':
+                        if language == "mr":
+                            status_response += f"\n\n📱 मोबाइल नंबरद्वारे शोधले गेले: {identifier}"
+                        else:
+                            status_response += f"\n\n📱 Found using mobile number: {identifier}"
+                    
                     status_response += f"\n\n🔗 {MAHA_JAL_KNOWLEDGE_BASE[language]['track_grievance_help']}"
                     return status_response
                 else:
-                    return MAHA_JAL_KNOWLEDGE_BASE[language]["grievance_not_found"]
+                    if identifier_type == 'mobile_number':
+                        if language == "mr":
+                            return f"माफ करा, {identifier} या मोबाइल नंबरसाठी कोणतीही तक्रार आढळली नाही."
+                        else:
+                            return f"Sorry, no grievance found for mobile number {identifier}."
+                    else:
+                        return MAHA_JAL_KNOWLEDGE_BASE[language]["grievance_not_found"]
             except Exception as e:
                 logger.error(f"Error fetching grievance status: {e}")
                 return MAHA_JAL_KNOWLEDGE_BASE[language]["database_error"]
         else:
-            return MAHA_JAL_KNOWLEDGE_BASE[language]["invalid_grievance_id"]
+            if language == "mr":
+                return "कृपया योग्य तक्रार क्रमांक किंवा 10-अंकी मोबाइल नंबर प्रदान करा."
+            else:
+                return "Please provide a valid Grievance ID or 10-digit mobile number."
 
+    # **Rest of the function remains the same...**
     # **Step 3: Feedback Question Flow**
     if "feedback" in input_text.lower() or "अभिप्राय" in input_text.lower():
         session_state["stage"] = "feedback_question"
@@ -759,17 +885,17 @@ async def get_grievance_status_endpoint(request: GrievanceStatusRequest):
             logger.info("Initializing database connection...")
             await db_manager.init_pool()
 
-        # Detect whether input is numeric (grievance_id) or unique number string
-        if request.grievance_id.isdigit():
-            grievance_data = await db_manager.get_grievance_status(request.grievance_id)
-        else:
-            grievance_data = await db_manager.get_grievance_status_by_unique_number(request.grievance_id)
-
+        # Use the updated get_grievance_status method that handles both ID types
+        grievance_data = await db_manager.get_grievance_status(request.grievance_id)
         logger.info(f"Retrieved grievance data: {grievance_data}")
 
         if grievance_data:
+            # Determine what type of identifier was used
+            identifier_type = "mobile_number" if validate_mobile_number_format(request.grievance_id) else "grievance_id"
+            
             formatted_status = format_simple_grievance_status(grievance_data, request.language)
             logger.info(f"Formatted status message: {formatted_status}")
+            
             return JSONResponse(
                 content={
                     "success": True,
@@ -779,21 +905,35 @@ async def get_grievance_status_endpoint(request: GrievanceStatusRequest):
                     "status": grievance_data.get("grievance_status"),
                     "submitted_date": grievance_data.get("grievance_logged_date").strftime("%d-%b-%Y") if grievance_data.get("grievance_logged_date") else None,
                     "department": grievance_data.get("organization_name", "Water Supply Department"),
-                    "language": request.language
+                    "language": request.language,
+                    "search_method": identifier_type,
+                    "search_value": request.grievance_id
                 }
             )
         else:
-            error_msg = {
-                'en': "Sorry, no grievance found with the provided ID. Please check your Grievance ID and try again.",
-                'mr': "माफ करा, दिलेल्या क्रमांकासह कोणतीही तक्रार आढळली नाही. कृपया आपला तक्रार क्रमांक तपासा आणि पुन्हा प्रयत्न करा."
-            }
-            logger.warning(f"No grievance found with ID: {request.grievance_id}")
+            # Determine error message based on identifier type
+            identifier_type = "mobile_number" if validate_mobile_number_format(request.grievance_id) else "grievance_id"
+            
+            if identifier_type == "mobile_number":
+                error_msg = {
+                    'en': f"Sorry, no grievance found for mobile number {request.grievance_id}. Please check your registered mobile number and try again.",
+                    'mr': f"माफ करा, {request.grievance_id} या मोबाइल नंबरसाठी कोणतीही तक्रार आढळली नाही. कृपया आपला नोंदणीकृत मोबाइल नंबर तपासा आणि पुन्हा प्रयत्न करा."
+                }
+            else:
+                error_msg = {
+                    'en': "Sorry, no grievance found with the provided ID. Please check your Grievance ID and try again.",
+                    'mr': "माफ करा, दिलेल्या क्रमांकासह कोणतीही तक्रार आढळली नाही. कृपया आपला तक्रार क्रमांक तपासा आणि पुन्हा प्रयत्न करा."
+                }
+            
+            logger.warning(f"No grievance found with {identifier_type}: {request.grievance_id}")
             return JSONResponse(
                 status_code=404,
                 content={
                     "success": False,
                     "found": False,
-                    "message": error_msg.get(request.language, error_msg['en'])
+                    "message": error_msg.get(request.language, error_msg['en']),
+                    "search_method": identifier_type,
+                    "search_value": request.grievance_id
                 }
             )
     except Exception as e:
