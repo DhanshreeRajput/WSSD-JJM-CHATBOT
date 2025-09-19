@@ -1119,7 +1119,6 @@
             clearChatBtn: document.getElementById('clearChatBtn'),
             chatInput: document.getElementById('chatInput'), // Changed
             sendBtn: document.getElementById('sendBtn'), // Changed
-            pageTitle: document.getElementById('pageTitle'),
             chatTitle: document.getElementById('chatTitle'),
             connectionStatus: document.getElementById('connectionStatus')
         };
@@ -1128,24 +1127,34 @@
         function updateUILanguage() {
             const script = PGRS_SCRIPTS[currentLanguage];
             
-            // Update page title
-            elements.pageTitle.textContent = script.pageTitle;
+            // Update page title in document
+            document.title = script.pageTitle || 'JJM';
             
             // Update chat header
-            elements.chatTitle.textContent = script.chatTitle;
-            elements.connectionStatus.textContent = script.connectionStatus;
+            if (elements.chatTitle) {
+                elements.chatTitle.textContent = script.chatTitle;
+            }
+            if (elements.connectionStatus) {
+                elements.connectionStatus.textContent = script.connectionStatus;
+            }
             
             // Update buttons
-            elements.restartBtn.textContent = script.restartBtn;
-            elements.clearChatBtn.textContent = script.clearChatBtn;
+            if (elements.restartBtn) {
+                elements.restartBtn.textContent = script.restartBtn;
+            }
+            if (elements.clearChatBtn) {
+                elements.clearChatBtn.textContent = script.clearChatBtn;
+            }
             
-            // Update input placeholder (cross-language hint)
+            // Update input placeholder
             if (elements.chatInput) {
-                elements.chatInput.placeholder = script.input_placeholder || "तुमची क्वेरी येथे विचारा";
+                elements.chatInput.placeholder = script.input_placeholder;
             }
             
             // Update language dropdown to show current selection
-            elements.languageSelect.value = currentLanguage;
+            if (elements.languageSelect) {
+                elements.languageSelect.value = currentLanguage;
+            }
         }
 
         // Utility Functions
