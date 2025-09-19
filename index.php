@@ -876,8 +876,8 @@
 </head>
 <body>
     <!-- Demo Content -->
-    <div class="demo-content">
-        <h1 id="pageTitle">Welcome to PGRS Portal Chatbot.</h1>
+    <div>
+<img src="logo/home.png" width="100%" height="auto" style="max-height: 100vh;" alt="Home Logo">
     </div>   
 
     <!-- Chat Widget -->
