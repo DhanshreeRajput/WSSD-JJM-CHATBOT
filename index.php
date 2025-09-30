@@ -1309,8 +1309,8 @@
 
         // Format grievance status with proper structure
         function formatGrievanceStatus(statusText) {
-            const englishPattern = /(?=Grievance ID:|Status:|Submitted:|Category:|Department:|District:|Block:|Taluka:|Gram Panchayat:|Subject:|Description:)/;
-            const marathiPattern = /(?=तक्रार क्रमांक:|स्थिती:|दाखल दिनांक:|श्रेणी:|विभाग:|जिल्हा:|ब्लॉक:|तालुका:|ग्राम पंचायत:|ग्रामपंचायत:|विषय:|वर्णन:)/;
+            const englishPattern = /(?=Grievance ID:|Status:|Submitted:|Category:|District:|Block:|Taluka:|Gram Panchayat:|Subject:|Description:)/;
+            const marathiPattern = /(?=तक्रार क्रमांक:|स्थिती:|दाखल दिनांक:|श्रेणी:|जिल्हा:|ब्लॉक:|तालुका:|ग्राम पंचायत:|ग्रामपंचायत:|विषय:|वर्णन:)/;
             
             const isMarathi = /[\u0900-\u097F]/.test(statusText);
             

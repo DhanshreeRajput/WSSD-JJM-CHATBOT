@@ -458,8 +458,7 @@ def format_simple_grievance_status(grievance_data: dict, language: str) -> str:
 Grievance ID: {grievance_data['grievance_unique_number']}
 Status: {grievance_data['grievance_status']}
 Submitted: {submitted_date}
-Category: {grievance_data.get('grievance_name', 'Not specified')}
-Department: {grievance_data.get('organization_name', 'Not specified')}"""
+Category: {grievance_data.get('sub_grievance_name', 'Not specified')}"""
         if grievance_data.get('district_name'):
             status_message += f"\nDistrict: {grievance_data['district_name']}"
         if grievance_data.get('block_name'):
@@ -904,7 +903,6 @@ async def get_grievance_status_endpoint(request: GrievanceStatusRequest):
                     "grievance_id": grievance_data.get("grievance_unique_number"),
                     "status": grievance_data.get("grievance_status"),
                     "submitted_date": grievance_data.get("grievance_logged_date").strftime("%d-%b-%Y") if grievance_data.get("grievance_logged_date") else None,
-                    "department": grievance_data.get("organization_name", "Water Supply Department"),
                     "language": request.language,
                     "search_method": identifier_type,
                     "search_value": request.grievance_id
