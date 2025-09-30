@@ -458,7 +458,7 @@ def format_simple_grievance_status(grievance_data: dict, language: str) -> str:
 Grievance ID: {grievance_data['grievance_unique_number']}
 Status: {grievance_data['grievance_status']}
 Submitted: {submitted_date}
-Category: {grievance_data.get('sub_grievance_name', 'Not specified')}"""
+Category: {grievance_data.get('sub_grievance_name')}"""
         if grievance_data.get('district_name'):
             status_message += f"\nDistrict: {grievance_data['district_name']}"
         if grievance_data.get('block_name'):
@@ -474,8 +474,7 @@ Category: {grievance_data.get('sub_grievance_name', 'Not specified')}"""
 तक्रार क्रमांक: {grievance_data['grievance_unique_number']}
 स्थिती: {grievance_data['grievance_status']}
 दाखल दिनांक: {submitted_date}
-श्रेणी: {grievance_data.get('grievance_name', 'निर्दिष्ट नाही')}
-विभाग: {grievance_data.get('organization_name', 'निर्दिष्ट नाही')}"""
+श्रेणी: {grievance_data.get('sub_grievance_name', 'निर्दिष्ट नाही')}"""
         if grievance_data.get('district_name'):
             status_message += f"\nजिल्हा: {grievance_data['district_name']}"
         if grievance_data.get('block_name'):
