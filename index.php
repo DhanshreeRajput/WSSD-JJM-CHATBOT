@@ -1665,7 +1665,7 @@
                 } else if (response.status === 404) {
                     return { success: false, message: data.message || "Grievance not found." };
                 } else {
-                    return { success: false, message: "Sorry, no grievance found with the provided ID. Please check your Grievance ID and try again." };
+                    return { success: false, message: "Sorry, no grievance found with the provided ID or Phone Number. Please check your Grievance ID or Phone Number and try again." };
                 }
             } catch (error) {
                 console.error("Network error", error);
