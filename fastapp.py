@@ -204,7 +204,7 @@ def add_to_chat_history(session_id: str, user_msg: str, bot_msg: str, language: 
     except Exception as e:
         logger.error(f"Failed to add to chat history: {e}")
 
-def save_rating_data(rating: int, session_id: str, language: str, grievance_id: str = None, feedback_text: str = None) -> bool:
+def save_rating_data(rating: int, session_id: str, language: str, grievance_id: str = None, feedback_text: str = None, phone_number: str = None) -> bool:
     """Save rating data for CSV export with proper UTF-8 handling."""
     try:
         # Prepare CSV directory
@@ -219,15 +219,29 @@ def save_rating_data(rating: int, session_id: str, language: str, grievance_id: 
         timestamp_str = datetime.now().strftime("%Y%m%d")
         csv_filename = f'ratings_log_{timestamp_str}.csv'
         csv_path = os.path.join(ratings_dir, csv_filename)
+        # If file exists but header is missing new columns, write to a v2 file to avoid mixed headers
+        if os.path.exists(csv_path):
+            try:
+                with open(csv_path, 'r', encoding='utf-8-sig') as rf:
+                    header_line = rf.readline()
+                    if header_line and 'phone_number' not in header_line:
+                        csv_filename = f'ratings_log_{timestamp_str}_v2.csv'
+                        csv_path = os.path.join(ratings_dir, csv_filename)
+            except Exception:
+                pass
 
         # Prepare rating entry
+        # Store phone number as-is (Excel may convert to scientific notation)
+        phone_text = phone_number if phone_number else None
+
         rating_entry = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "session_id": session_id,
             "rating": rating,
             "Feedback": RATING_LABELS[language][rating],
             "language": language,
-            "grievance_id": grievance_id or "N/A"
+            "grievance_id": grievance_id or "N/A",
+            "phone_number": phone_text or "N/A"
               # Can be added later
         }
 
@@ -266,8 +280,8 @@ def save_rating_data(rating: int, session_id: str, language: str, grievance_id: 
                 "rating": rating,
                 "Feedback": RATING_LABELS[language][rating],
                 "language": language,
-                "grievance_id": grievance_id or "N/A"
-            
+                "grievance_id": grievance_id or "N/A",
+                "phone_number": phone_text or "N/A"
             }
             RATINGS_DATA.append(rating_entry)
             logger.info(f"Rating saved to memory only: {rating}/5 for session {session_id}")
@@ -553,6 +567,11 @@ async def process_maha_jal_query(input_text: str, session_id: str, language: str
             grievance_data = await db_manager.get_grievance_status(identifier)
             if grievance_data:
                 logger.info(f"Found grievance data for {identifier_type}: {grievance_data}")
+                # Track how status was checked for rating attribution
+                USER_SESSION_STATE.setdefault(session_id, {})
+                USER_SESSION_STATE[session_id]["last_identifier_type"] = identifier_type
+                USER_SESSION_STATE[session_id]["last_identifier_value"] = identifier
+                USER_SESSION_STATE[session_id]["last_identifier_at"] = time.time()
                 status_response = format_simple_grievance_status(grievance_data, language)
                 
                 # Add appropriate tracking message based on identifier type
@@ -592,6 +611,11 @@ async def process_maha_jal_query(input_text: str, session_id: str, language: str
                 grievance_data = await get_grievance_status(identifier)
                 if grievance_data:
                     session_state["stage"] = "status_shown"
+                    # Track how status was checked for rating attribution
+                    USER_SESSION_STATE.setdefault(session_id, {})
+                    USER_SESSION_STATE[session_id]["last_identifier_type"] = identifier_type
+                    USER_SESSION_STATE[session_id]["last_identifier_value"] = identifier
+                    USER_SESSION_STATE[session_id]["last_identifier_at"] = time.time()
                     status_response = format_simple_grievance_status(grievance_data, language)
                     
                     # Add identifier type info
@@ -632,6 +656,11 @@ Or enter your registered mobile number (Example: 9876543210)"""
                 grievance_data = await get_grievance_status(identifier)
                 if grievance_data:
                     session_state["stage"] = "status_shown"
+                    # Track how status was checked for rating attribution
+                    USER_SESSION_STATE.setdefault(session_id, {})
+                    USER_SESSION_STATE[session_id]["last_identifier_type"] = identifier_type
+                    USER_SESSION_STATE[session_id]["last_identifier_value"] = identifier
+                    USER_SESSION_STATE[session_id]["last_identifier_at"] = time.time()
                     status_response = format_simple_grievance_status(grievance_data, language)
                     
                     # Add identifier type info
@@ -1033,12 +1062,54 @@ async def submit_rating(request: RatingRequest):
     try:
         session_id = request.session_id or generate_session_id()
         rating_label = RATING_LABELS[request.language][request.rating]
+
+        # Determine identifier used in this session
+        session_state = USER_SESSION_STATE.get(session_id, {})
+        last_type = session_state.get("last_identifier_type")
+        last_value = session_state.get("last_identifier_value")
+        last_at = session_state.get("last_identifier_at")
+
+        # Prefer explicit grievance_id from request if valid
+        gid = None
+        phone = None
+        if request.grievance_id:
+            if validate_mobile_number_format(request.grievance_id):
+                phone = request.grievance_id
+            elif validate_grievance_id_format(request.grievance_id):
+                gid = request.grievance_id
+        elif last_type and last_value:
+            if last_type == 'mobile_number':
+                phone = last_value
+            elif last_type == 'grievance_id':
+                gid = last_value
+
+        # Require that status was shown recently in this session
+        IDENTIFIER_TTL_SECONDS = 30 * 60
+        is_recent = bool(last_at and (time.time() - last_at) <= IDENTIFIER_TTL_SECONDS and session_state.get("stage") == "status_shown")
+        if not request.grievance_id and not is_recent:
+            gid = None
+            phone = None
+
+        # If neither grievance_id nor phone present, do not save (anonymous)
+        if not gid and not phone:
+            msg = {
+                'en': "Your rating was not saved because it isn't linked to a grievance. Please check status using your Grievance ID or registered mobile number, then submit your rating again.",
+                'mr': "आपले रेटिंग जतन केले गेले नाही कारण ते कोणत्याही तक्रारीशी जोडलेले नाही. कृपया तुमच्या तक्रार क्रमांक किंवा नोंदणीकृत मोबाइल क्रमांकाने स्थिती तपासा आणि नंतर पुन्हा रेटिंग सबमिट करा."
+            }
+            logger.info(f"Skipping anonymous rating for session {session_id}")
+            return JSONResponse(status_code=200, content={
+                "success": True,
+                "saved": False,
+                "message": msg.get(request.language, msg['en'])
+            })
+
         success = save_rating_data(
             rating=request.rating,
             session_id=session_id,
             language=request.language,
-            grievance_id=request.grievance_id,
-            feedback_text=request.feedback_text
+            grievance_id=gid,
+            feedback_text=request.feedback_text,
+            phone_number=phone
         )
         if success:
             thank_you_msg = MAHA_JAL_KNOWLEDGE_BASE[request.language]['rating_thank_you']
@@ -1116,7 +1187,7 @@ async def export_ratings():
                 content={"error": "No ratings data available for export"}
             )
         output = io.StringIO()
-        fieldnames = ["timestamp", "session_id", "rating", "feedback", "language", "grievance_id"]
+        fieldnames = ["timestamp", "session_id", "rating", "feedback", "language", "grievance_id", "phone_number"]
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
         for rating_data in RATINGS_DATA:
@@ -1126,7 +1197,8 @@ async def export_ratings():
                 "rating": rating_data["rating"],
                 "feedback": rating_data["rating_label"],
                 "language": rating_data["language"],
-                "grievance_id": rating_data["grievance_id"]
+                "grievance_id": rating_data["grievance_id"],
+                "phone_number": rating_data.get("phone_number", "N/A")
             
             }
             writer.writerow(modified_row)

@@ -1106,6 +1106,8 @@
         let selectedRating = null;
         let isWindowOpen = false;
         let currentSessionId = null;
+        let lastGrievancePromptAt = 0; // debounce prompt
+        let lastBotMessageContent = ""; // global guard against repeated bot messages
 
         // DOM Elements
         const elements = {
@@ -1293,6 +1295,11 @@
         }
 
         function addMessage(content, isUser = false) {
+            // Global guard to prevent consecutive duplicate bot messages
+            const normalized = (content || "").toString().trim();
+            if (!isUser && normalized.length > 0 && normalized === lastBotMessageContent) {
+                return; // skip duplicate
+            }
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
             
@@ -1305,6 +1312,9 @@
             
             elements.chatMessages.insertBefore(messageDiv, elements.typingIndicator);
             scrollToBottom();
+            if (!isUser) {
+                lastBotMessageContent = normalized;
+            }
         }
 
         // Format grievance status with proper structure
@@ -1574,12 +1584,24 @@
                     })
                 });
 
+                const data = await response.json().catch(() => ({}));
+
                 if (response.ok) {
-                    setTimeout(() => {
-                        addMessage(script.thank_you, false);
-                        chatState = 'end';
-                        pendingGrievanceId = '';
-                    }, 500);
+                    // Honor backend decision: if saved === false, show the message and do not end the flow
+                    if (data && data.saved === false) {
+                        addMessage(data.message || (currentLanguage === 'mr' 
+                            ? 'आपले रेटिंग जतन केले गेले नाही.' 
+                            : "Your rating wasn't saved."), false);
+                        // Keep state so user can check status and rate again
+                        chatState = 'awaiting_rating';
+                    } else {
+                        // Normal thank-you path
+                        setTimeout(() => {
+                            addMessage((data && data.thank_you) ? data.thank_you : script.thank_you, false);
+                            chatState = 'end';
+                            pendingGrievanceId = '';
+                        }, 500);
+                    }
                 } else {
                     throw new Error('Failed to submit rating');
                 }
@@ -1652,6 +1674,24 @@
             elements.chatInput.focus();
         }
 
+        // Debounced wrapper to avoid duplicate prompts
+        function showGrievanceInputDebounced(delayMs = 0) {
+            const MIN_GAP_MS = 1200;
+            const now = Date.now();
+            if (now - lastGrievancePromptAt < MIN_GAP_MS) {
+                return;
+            }
+            const run = () => {
+                lastGrievancePromptAt = Date.now();
+                showGrievanceInput();
+            };
+            if (delayMs > 0) {
+                setTimeout(run, delayMs);
+            } else {
+                run();
+            }
+        }
+
         async function fetchGrievanceStatus(grievanceId, language) {
             try {
                 const response = await fetch(`${API_BASE_URL}/grievance/status/`, {
@@ -1682,20 +1722,6 @@
             
             const isValidGrievanceId = grievancePattern.test(input.trim());
             const isValidMobileNumber = mobilePattern.test(input.replace(/\D/g, '')); // Remove non-digits
-            
-            if (!isValidGrievanceId && !isValidMobileNumber) {
-                setTimeout(() => {
-                    // Updated error message to mention both options
-                    const errorMsg = currentLanguage === 'en' 
-                        ? "Please provide a valid Grievance ID (e.g., G-12safeg7678) or 10-digit mobile number (e.g., 9876543210)."
-                        : "कृपया वैध तक्रार क्रमांक (उदा. G-12safeg7678) किंवा 10-अंकी मोबाइल नंबर (उदा. 9876543210) प्रदान करा.";
-                    addMessage(errorMsg, false);
-                    setTimeout(() => {
-                        showGrievanceInput();
-                    }, 1500);
-                }, 1000);
-                return;
-            }
 
             showTypingIndicator();
 
@@ -1728,16 +1754,12 @@
                 } else {
                     hideTypingIndicator();
                     addMessage(result.message, false);
-                    setTimeout(() => {
-                        showGrievanceInput();
-                    }, 1500);
+                    showGrievanceInputDebounced(1200);
                 }
             } catch (error) {
                 hideTypingIndicator();
                 addMessage("Error connecting to the server. Please try again.", false);
-                setTimeout(() => {
-                    showGrievanceInput();
-                }, 1500);
+                showGrievanceInputDebounced(1200);
             }
         }
 
@@ -1764,9 +1786,8 @@
             
             if (lowerSuggestion.includes('status') || lowerSuggestion.includes('check') || 
                 lowerSuggestion.includes('स्थिती') || lowerSuggestion.includes('तपासायची')) {
-                setTimeout(() => {
-                    showGrievanceInput();
-                }, 500);
+                showGrievanceInputDebounced(500);
+                showGrievanceInputDebounced(500);
                 return;
             }
             
