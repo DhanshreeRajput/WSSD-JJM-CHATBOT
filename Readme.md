@@ -1,212 +1,309 @@
-	
- 	
-	 WSSD-JJM Chatbot
+# WSSD-JJM-CHATBOT
 
-This project contains a lightweight frontend (PHP) chat widget and a FastAPI backend that powers a bilingual (English/Marathi) scripted grievance and feedback flow, including a 5 star rating system and CSV export.
+A comprehensive multilingual chatbot system for the Water Supply and Sanitation Department (WSSD) Jal Jeevan Mission (JJM) Public Grievance Redressal System. This system provides real-time grievance status checking, rating collection, and multilingual support (English and Marathi).
 
-### Features
-- Bilingual scripted flow (English/Marathi)
-- Greeting detection and guided questions
-- 5 star rating with label mapping and CSV export
-- Simple in memory session/chat history
-- CORS enabled for local development
+## 🚀 Features
 
-### Tech Stack
-- Backend: FastAPI, Uvicorn, Pydantic
-- Frontend: PHP (for serving), HTML/CSS/Vanilla JS
-- Packaging: pip/venv (no build tools required)
+### Core Functionality
+- **Multilingual Support**: Full support for English and Marathi languages with seamless switching
+- **Grievance Status Checking**: Real-time status checking using Grievance ID or registered mobile number
+- **Rating System**: 5-star rating system with feedback collection linked to specific grievances
+- **Knowledge Base**: Comprehensive information about WSSD, JJM, and related departments
+- **Responsive UI**: Modern, mobile-friendly chat interface
 
-### File/Directory Structure (detailed)
+### Advanced Features
+- **Smart Input Validation**: Client-side and server-side validation for grievance IDs and mobile numbers
+- **Anonymous Rating Prevention**: Ratings are only saved when linked to a verified grievance
+- **CSV Export**: Detailed rating data export with separate columns for grievance ID and phone number
+- **Session Management**: Persistent session handling for rating attribution
+- **Debounced Input**: Prevents duplicate prompts and error messages
+
+## 🏗️ Architecture
+
+### Backend (FastAPI)
+- **Framework**: FastAPI with async/await support
+- **Database**: PostgreSQL with connection pooling
+- **Data Export**: CSV generation with UTF-8 BOM for Excel compatibility
+- **Validation**: Pydantic models for request validation
+- **Logging**: Comprehensive logging for debugging and monitoring
+
+### Frontend (Vanilla JavaScript)
+- **UI Framework**: Pure HTML/CSS/JavaScript (no dependencies)
+- **Responsive Design**: Mobile-first approach with modern CSS
+- **Real-time Updates**: Dynamic chat interface with typing indicators
+- **State Management**: Client-side session and conversation state handling
+
+## 📁 Project Structure
+
 ```
 WSSD-JJM-CHATBOT/
-├─ fastapp.py               # FastAPI application (all endpoints live here)
-│  ├─ /                    # Root returns runtime info (uptime, sessions, etc.)
-│  ├─ /query/              # Processes user input; returns guided responses
-│  ├─ /rating/             # Accepts 1–5 ratings; stores in memory
-│  ├─ /ratings/export      # Returns ratings as UTF 8 BOM CSV
-│  ├─ /ratings/stats       # Returns rating stats (avg, distribution)
-│  ├─ /health/             # Health probe
-│  ├─ /languages/          # Supported languages metadata
-│  └─ /suggestions/        # Quick suggestion strings for UI
-│
-├─ index.php               # Frontend chat widget and UI logic
-│  ├─ API_BASE_URL         # Configure backend URL (default http://localhost:8000)
-│  ├─ UI styles            # Chat bubble, window, messages, rating stars
-│  └─ Flow logic           # Start → feedback → rating; quick suggestions
-│
-├─ api_helper.php          # Optional helper (not required by current widget)
-│
-├─ logo/
-│  ├─ jjm_new_logo.svg     # Header/logo in chat window
-│  └─ main_logo.png        # Floating chat bubble icon
-│
-└─ ratings_data/           # Optional folder if you later persist ratings to disk
+├── fastapp.py              # Main FastAPI backend application
+├── index.php               # Frontend chat interface
+├── database.py             # Database connection and management
+├── ratings_data/           # CSV export directory
+│   ├── ratings_log_YYYYMMDD.csv
+│   └── ratings_log_YYYYMMDD_v2.csv
+├── logo/                   # UI assets
+│   ├── main_logo.png
+│   ├── jjm_new_logo.svg
+│   └── home.png
+└── README.md               # This file
 ```
 
-Notes
-- The backend currently stores chat history and ratings in memory. If you want persistence, you can save to CSV on each `/rating/` call (see "Optional: enable CSV persistence" below).
-- `index.php` contains all widget UI/UX. Images are loaded from `logo/`.
+## 🛠️ Installation & Setup
 
----
+### Prerequisites
+- Python 3.8+
+- PostgreSQL database
+- Modern web browser
 
-## Prerequisites
+### Backend Setup
+1. **Install Dependencies**
+   ```bash
+   pip install fastapi uvicorn psycopg2-binary python-multipart
+   ```
 
-- Windows 10/11 (PowerShell)
-- Python 3.9+ (recommend 3.10 or newer)
-- pip
-- PHP 8+ (for serving `index.php`; you can also use any web server like Apache/Nginx)
+2. **Database Configuration**
+   - Update database credentials in `database.py`
+   - Ensure PostgreSQL is running and accessible
 
----
+3. **Start the Server**
+   ```bash
+   uvicorn fastapp:app --host 0.0.0.0 --port 8000 --reload
+   ```
 
-## Backend (FastAPI) – Setup and Run
+### Frontend Setup
+1. **Deploy Files**
+   - Upload `index.php` to your web server
+   - Ensure `logo/` directory is accessible
+   - Update API_BASE_URL in the JavaScript if needed
 
-1) Create and activate a virtual environment
+2. **Configuration**
+   - Modify `API_BASE_URL` constant in `index.php` to point to your backend
+   - Ensure CORS is properly configured if serving from different domains
 
-```powershell
-cd C:\Users\saarsys\Desktop\JJM_WSSD_CHATBOT\WSSD-JJM-CHATBOT
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+## 🔧 Configuration
+
+### Backend Configuration
+- **Database Settings**: Update connection parameters in `database.py`
+- **API Endpoints**: All endpoints are defined in `fastapp.py`
+- **CORS Settings**: Configure allowed origins for cross-origin requests
+
+### Frontend Configuration
+- **Language Support**: Add new languages in `PGRS_SCRIPTS` object
+- **API Base URL**: Update `API_BASE_URL` constant
+- **UI Customization**: Modify CSS variables and styles
+
+## 📊 API Endpoints
+
+### Core Endpoints
+- `POST /chat/` - Process user messages and return responses
+- `POST /grievance/status/` - Check grievance status by ID or phone number
+- `POST /rating/` - Submit rating with grievance attribution
+- `GET /ratings/export` - Export all ratings as CSV
+
+### Utility Endpoints
+- `GET /health` - Health check endpoint
+- `GET /ratings/stats` - Get rating statistics
+- `POST /session/reset` - Reset user session
+
+## 💾 Database Schema
+
+### Grievance Status Table
+```sql
+-- Example grievance data structure
+grievance_unique_number (VARCHAR)
+grievance_status (VARCHAR)
+grievance_logged_date (DATE)
+category (VARCHAR)
+district (VARCHAR)
+block (VARCHAR)
+taluka (VARCHAR)
+gram_panchayat (VARCHAR)
+subject (TEXT)
+description (TEXT)
 ```
 
-2) Install dependencies
-
-```powershell
-pip install fastapi "uvicorn[standard]" pydantic
-# optional (handy for testing): httpx requests
+### Rating Data Structure
+```csv
+timestamp,session_id,rating,Feedback,language,grievance_id,phone_number
+2024-01-15 10:30:00,session_abc123,4,Very Good,en,G-12safeg7678,N/A
+2024-01-15 10:35:00,session_def456,5,Excellent,mr,N/A,9876543210
 ```
 
-Or pin versions (example):
+## 🌐 Multilingual Support
 
-```powershell
-pip install "fastapi==0.111.*" "uvicorn[standard]==0.30.*" "pydantic==2.*"
-```
+### Supported Languages
+- **English (en)**: Default language with full functionality
+- **Marathi (mr)**: Complete translation including error messages
 
-3) Run the API server
+### Adding New Languages
+1. Add language code to `PGRS_SCRIPTS` object
+2. Update language dropdown in frontend
+3. Add translations for all UI elements and messages
+4. Update backend error messages
 
-```powershell
-python fastapp.py
-```
+### Language-Specific Features
+- Dynamic UI language switching
+- Grievance status messages in user's language
+- Rating labels and feedback in local language
+- Error messages with proper translations
 
-The server will start on `http://localhost:8000/` and prints helpful links:
-- Docs: `http://localhost:8000/docs`
-- Health: `http://localhost:8000/health/`
-- Status: `http://localhost:8000/status/`
-- Ratings CSV export: `http://localhost:8000/ratings/export`
+## 🔒 Security Features
 
-Notes
-- CORS is open to `*` for local development. Restrict it in production.
-- Data (chat history and ratings) is in memory and resets on restart.
+### Input Validation
+- **Client-side**: Format validation for grievance IDs and mobile numbers
+- **Server-side**: Comprehensive validation with proper error responses
+- **SQL Injection Prevention**: Parameterized queries and input sanitization
 
-Alternative run (explicit uvicorn):
+### Rating Security
+- **Anonymous Prevention**: Ratings only saved when linked to verified grievances
+- **Session Validation**: 30-minute validity window for rating attribution
+- **Data Integrity**: Proper error handling and fallback mechanisms
 
-```powershell
-uvicorn fastapp:app --host 0.0.0.0 --port 8000 --reload
-```
+## 📈 Rating System
 
----
+### Rating Collection
+- **5-Star Scale**: 1 (Poor) to 5 (Excellent)
+- **Visual Feedback**: Interactive star rating with hover effects
+- **Language Support**: Rating labels in both English and Marathi
+- **Grievance Linking**: Automatic attribution to checked grievances
 
-## Frontend (PHP) – Serve the Chat Widget
+### Rating Storage
+- **CSV Export**: Daily CSV files with comprehensive data
+- **Header Management**: Automatic header updates for new columns
+- **Phone Number Formatting**: Proper handling to prevent Excel formatting issues
+- **Data Validation**: Ensures data integrity and completeness
 
-1) Ensure the backend is running on `http://localhost:8000`.
-2) Serve the PHP page from the project root:
+## 🎨 UI/UX Features
 
-```powershell
-cd C:\Users\saarsys\Desktop\JJM_WSSD_CHATBOT\WSSD-JJM-CHATBOT
-php -S localhost:8080 index.php
-```
+### Chat Interface
+- **Modern Design**: Clean, professional interface with gradient backgrounds
+- **Responsive Layout**: Works on desktop, tablet, and mobile devices
+- **Typing Indicators**: Visual feedback during processing
+- **Message History**: Persistent chat history within session
 
-3) Open `http://localhost:8080` in your browser. Click the circular chat bubble to open the widget.
+### Interactive Elements
+- **Quick Actions**: Restart and clear chat buttons
+- **Language Switcher**: Easy language switching with immediate UI updates
+- **Suggestion Buttons**: Pre-defined quick actions for common queries
+- **Rating Interface**: Intuitive 5-star rating system
 
-If your backend runs at a different URL, update `API_BASE_URL` in `index.php` near the bottom of the file.
+## 🚨 Error Handling
 
----
+### Client-Side Errors
+- **Input Validation**: Immediate feedback for invalid formats
+- **Network Errors**: Graceful handling of connection issues
+- **Duplicate Prevention**: Debounced input to prevent spam
 
-## API Overview
+### Server-Side Errors
+- **Database Errors**: Proper error messages and fallback handling
+- **Validation Errors**: Clear, actionable error messages
+- **Rate Limiting**: Protection against abuse
 
-- `POST /query/`
-  - Body: `{ "input_text": "string", "session_id": "optional", "language": "en|mr" }`
-  - Returns guided responses and manages a simple state machine per `session_id`.
+## 📊 Monitoring & Logging
 
-- `POST /rating/`
-  - Body: `{ "rating": 1..5, "session_id": "optional", "language": "en|mr", "grievance_id": "optional", "feedback_text": "optional" }`
-  - Saves rating in memory and returns a thank you message (with labels in the chosen language).
+### Logging Levels
+- **INFO**: Normal operations and user interactions
+- **WARNING**: Non-critical issues and edge cases
+- **ERROR**: Critical errors requiring attention
+- **DEBUG**: Detailed debugging information
 
-- `GET /ratings/export`
-  - Downloads a UTF 8 BOM CSV containing recent ratings.
+### Key Metrics
+- Rating submission rates
+- Grievance status check frequency
+- Language usage statistics
+- Error rates and types
 
-- `GET /ratings/stats`
-  - Returns totals, averages, and distributions for ratings.
+## 🔄 Data Flow
 
-- `GET /health/`, `GET /languages/`, `GET /suggestions/`
-  - Utility endpoints for monitoring and UI hints.
+### Grievance Status Check
+1. User enters Grievance ID or mobile number
+2. Client-side format validation
+3. Server-side validation and database query
+4. Status formatting and response
+5. Session state update for rating attribution
 
-### Request/Response Examples
+### Rating Submission
+1. User selects rating after status check
+2. System checks for valid grievance attribution
+3. Rating data preparation and validation
+4. CSV export with proper formatting
+5. Success confirmation to user
 
-Query (English):
-```powershell
-curl -X POST "http://localhost:8000/query/" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"input_text\":\"hello\",\"language\":\"en\"}"
-```
+## 🧪 Testing
 
-Query (Marathi):
-```powershell
-curl -X POST "http://localhost:8000/query/" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"input_text\":\"नमस्कार\",\"language\":\"mr\"}"
-```
+### Manual Testing Checklist
+- [ ] Language switching works correctly
+- [ ] Grievance status checking with valid/invalid IDs
+- [ ] Rating submission with and without grievance attribution
+- [ ] CSV export functionality
+- [ ] Mobile responsiveness
+- [ ] Error handling scenarios
 
-Rating example (PowerShell):
-```powershell
-curl -X POST "http://localhost:8000/rating/" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"rating\":5,\"language\":\"en\"}"
-```
+### Test Scenarios
+1. **Valid Grievance ID**: `G-12safeg7678`
+2. **Valid Mobile Number**: `9876543210`
+3. **Invalid Input**: `abc123`, `12345`
+4. **Anonymous Rating**: Rating without status check
+5. **Language Switching**: Mid-conversation language change
 
----
+## 🚀 Deployment
 
-## Common Issues
+### Production Considerations
+- **Environment Variables**: Use environment variables for sensitive data
+- **HTTPS**: Enable SSL/TLS for secure communication
+- **Database Connection Pooling**: Configure appropriate pool sizes
+- **Log Rotation**: Implement proper log file management
+- **Backup Strategy**: Regular database and CSV backups
 
-- Port already in use: Change the port in `fastapp.py` or stop the conflicting process.
-- CORS errors in browser: Confirm backend is running and `API_BASE_URL` matches the backend origin.
-- Images not loading: Ensure files in `logo/` are present and paths in `index.php` are correct.
-- 404 on `/ratings/export`: You must submit at least one rating before exporting.
+### Performance Optimization
+- **Database Indexing**: Ensure proper indexes on grievance lookup fields
+- **Connection Pooling**: Optimize database connection management
+- **Caching**: Consider caching for frequently accessed data
+- **CDN**: Use CDN for static assets in production
 
----
+## 📝 Changelog
 
-## Production Notes
+### Version 1.0.0 (Current)
+- ✅ Multilingual support (English/Marathi)
+- ✅ Grievance status checking
+- ✅ Rating system with grievance attribution
+- ✅ CSV export functionality
+- ✅ Input validation and error handling
+- ✅ Responsive UI design
+- ✅ Session management
+- ✅ Anonymous rating prevention
 
-- Restrict `allow_origins` in CORS middleware to your real domain.
-- Use a process manager (e.g., systemd, NSSM on Windows) for the FastAPI app via `uvicorn` or `gunicorn` (with `uvicorn.workers.UvicornWorker`).
-- Serve the PHP/HTML with a proper web server (Apache/Nginx/IIS) and point the site root at this folder.
+### Future Enhancements
+- [ ] Additional language support
+- [ ] Advanced analytics dashboard
+- [ ] Bulk grievance status checking
+- [ ] Integration with external systems
+- [ ] Automated testing suite
+- [ ] Performance monitoring
 
-### Configuration points
-- Backend CORS: Edit `fastapp.py` inside the `add_middleware(CORSMiddleware, allow_origins=[...])` call.
-- Frontend API URL: Edit `API_BASE_URL` constant in `index.php`.
+## 🤝 Contributing
 
-### Optional: enable CSV persistence on write
-By default ratings are kept in memory and only exported on request. If you want to append each rating to a CSV file under `ratings_data/`:
-1. Create the folder if it does not exist.
-2. In `fastapp.py`, inside `save_rating_data(...)`, append `rating_entry` to a CSV path (e.g., `ratings_data/ratings_log.csv`). Make sure to open the file with `encoding='utf-8-sig'` for proper Marathi characters and write headers if the file is empty.
+### Development Guidelines
+1. Follow existing code style and patterns
+2. Add proper error handling for new features
+3. Update documentation for any changes
+4. Test thoroughly across different scenarios
+5. Ensure mobile compatibility
 
-### Logging
-- The backend uses Python `logging` with level `INFO`. Adjust with `logging.basicConfig(level=logging.DEBUG)` during development if needed.
+### Code Standards
+- **Python**: Follow PEP 8 guidelines
+- **JavaScript**: Use consistent naming conventions
+- **CSS**: Follow BEM methodology for class naming
+- **Comments**: Add meaningful comments for complex logic
 
----
+## 📞 Support
 
-## Development Workflow
-
-1) Run backend with `uvicorn` in `--reload` mode.
-2) Serve frontend with `php -S` or your local web server.
-3) Edit `index.php` styles or text; refresh browser.
-4) Use `http://localhost:8000/docs` to try endpoints quickly.
-
-Recommended VS Code/Cursor extensions: Python, PHP Intelephense, REST Client.
-
----
-
-## License
-
-Internal/Private project unless stated otherwise.
+### Common Issues
+1. **Database Connection**: Check credentials and network connectivity
+2. **CORS Errors**: Verify API_BASE_URL configuration
+3. **CSV Export Issues**: Check file permissions and disk space
+4. **Language Switching**: Clear browser cache if issues persist
 
 
